@@ -4,7 +4,7 @@
 // 1) Google Apps Script "Web App" havolasi.
 //    README.md dagi "1-QADAM: Google Sheets + Apps Script" bo'limidagi
 //    yo'riqnoma bo'yicha oling (.../exec bilan tugaydigan havola).
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzkp9YZsglUMdL7dWlrQeFWVN-sRFnXQQpDWZK9j7uvC91OrSueEMIabwPkL1tJQynFcQ/exec";
+const APPS_SCRIPT_URL = "BU_YERGA_WEB_APP_HAVOLASINI_QOYING";
 
 // 2) Administrator paneliga kirish kaliti. O'zingiz xohlagan so'zni yozing
 //    va faqat administratorlarga ayting. Bu kuchli himoya emas — shuning
