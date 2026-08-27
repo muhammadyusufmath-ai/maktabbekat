@@ -59,7 +59,9 @@ a{color:var(--primary);}
 .mark svg{width:20px;height:20px;}
 .topbar h1{font-size:22px;letter-spacing:-.01em;}
 .tagline{color:var(--ink-soft);font-size:14px;margin:2px 0 26px;max-width:62ch;}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-card);padding:22px;box-shadow:var(--shadow);}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-card);padding:22px;box-shadow:var(--shadow);
+  transform:translateZ(0);transition:transform .22s ease,box-shadow .22s ease;}
+.card:hover{transform:translateY(-2px);box-shadow:0 2px 6px rgba(20,26,20,.06), 0 16px 34px rgba(20,26,20,.10);}
 .card + .card{margin-top:20px;}
 .card h2{font-size:16px;margin-bottom:4px;}
 .card .hint{color:var(--ink-soft);font-size:13px;margin:0 0 16px;}
@@ -72,12 +74,16 @@ input[type="text"],input[type="password"],select{
 input:focus,select:focus,button:focus-visible{outline:2px solid var(--primary);outline-offset:1px;}
 .row2{display:flex;gap:10px;}
 .row2 > *{flex:1;}
-button{font:inherit;cursor:pointer;border:none;border-radius:var(--radius-ctrl);padding:10px 14px;font-weight:600;font-size:14px;transition:opacity .12s ease;}
+button{font:inherit;cursor:pointer;border:none;border-radius:var(--radius-ctrl);padding:10px 14px;font-weight:600;font-size:14px;
+  transition:opacity .12s ease,transform .12s ease,box-shadow .12s ease;}
 button:disabled{opacity:.55;cursor:default;}
-button:hover:not(:disabled){opacity:.88;}
-.btn-primary{background:var(--primary);color:var(--primary-ink);width:100%;padding:12px 14px;font-size:14.5px;margin-top:18px;}
+button:hover:not(:disabled){opacity:.88;transform:translateY(-1px);}
+button:active:not(:disabled){transform:translateY(0) scale(.98);}
+.btn-primary{background:linear-gradient(180deg,var(--primary) 0%,var(--primary-strong) 100%);color:var(--primary-ink);width:100%;padding:12px 14px;font-size:14.5px;margin-top:18px;
+  box-shadow:0 1px 2px rgba(20,26,20,.08),0 6px 16px rgba(31,58,95,.28);}
+.btn-primary:hover:not(:disabled){box-shadow:0 2px 4px rgba(20,26,20,.1),0 10px 22px rgba(31,58,95,.34);}
 .btn-ghost{background:var(--surface-2);color:var(--ink);}
-.btn-accent{background:var(--accent);color:var(--accent-ink);}
+.btn-accent{background:linear-gradient(180deg,var(--accent) 0%,#D18E24 100%);color:var(--accent-ink);}
 .btn-text{background:transparent;color:var(--primary);padding:6px 2px;text-decoration:underline;font-size:13px;}
 #map{height:280px;border-radius:var(--radius-ctrl);border:1px solid var(--border);margin-top:2px;}
 .loc-readout{font-size:13px;color:var(--ink-soft);margin-top:9px;font-variant-numeric:tabular-nums;}
@@ -173,7 +179,11 @@ tr.group-row td{background:var(--surface-2);font-weight:700;color:var(--primary)
 
 /* ---------------- Admin: routing map ---------------- */
 #map-routes{height:420px;border-radius:var(--radius-ctrl);border:1px solid var(--border);margin-top:6px;}
-.bus-card{border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-top:12px;}
+#map-school{height:260px;border-radius:var(--radius-ctrl);border:1px solid var(--border);margin-top:10px;}
+.chip-time{font-variant-numeric:tabular-nums;color:var(--primary);}
+.bus-card{border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-top:12px;
+  transition:transform .18s ease,box-shadow .18s ease;}
+.bus-card:hover{transform:translateY(-2px);box-shadow:0 10px 22px rgba(20,26,20,.08);}
 .bus-card-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 .bus-swatch{width:16px;height:16px;border-radius:5px;flex:none;}
 .bus-card-head b{font-family:"Manrope";font-size:15px;}
@@ -192,3 +202,27 @@ tr.group-row td{background:var(--surface-2);font-weight:700;color:var(--primary)
 .modal-row span:first-child{color:var(--ink-soft);}
 
 @media (prefers-reduced-motion: reduce){*{transition:none !important;}}
+
+/* iOS Safari fokus qilinganda font-size 16px'dan kichik bo'lsa butun
+   sahifani avtomatik yaqinlashtiradi ("zoom qilib qolyapti" degan xato
+   shundan) — mobil ekranda barcha kiritish maydonlarini 16px qilamiz,
+   shunda fokusda ekran markazidan siljib ketmaydi. */
+@media (max-width: 640px){
+  input[type="text"],input[type="password"],input[type="tel"],input[type="search"],
+  select,textarea,.tbl-input{font-size:16px !important;}
+}
+
+/* ---------------- Toast / bildirishnoma ---------------- */
+.toast-wrap{position:fixed;left:0;right:0;bottom:18px;display:flex;justify-content:center;z-index:200;pointer-events:none;padding:0 16px;}
+.toast{background:var(--success);color:#fff;padding:13px 20px;border-radius:99px;font-size:13.5px;font-weight:700;box-shadow:var(--shadow);
+  display:flex;align-items:center;gap:8px;opacity:0;transform:translateY(10px);transition:opacity .25s ease,transform .25s ease;max-width:92vw;text-align:center;}
+.toast.show{opacity:1;transform:translateY(0);}
+
+/* ---------------- Tasdiqlash modali (duplikat ism-familiya va h.k.) ---------------- */
+.confirm-backdrop{position:fixed;inset:0;background:rgba(10,14,10,.45);display:flex;align-items:center;justify-content:center;z-index:150;padding:20px;}
+.confirm-backdrop[hidden]{display:none;}
+.confirm-card{background:var(--surface);border-radius:var(--radius-card);padding:22px;max-width:380px;width:100%;box-shadow:var(--shadow);}
+.confirm-card h3{font-size:16px;margin-bottom:8px;}
+.confirm-card p{font-size:13.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
+.confirm-actions{display:flex;gap:10px;}
+.confirm-actions button{flex:1;margin-top:0;}

@@ -14,14 +14,33 @@ function estimateWalkMeters(km) {
   return km * 1000 * WALK_CIRCUITY_FACTOR;
 }
 
+function addMinutesToClock(hhmm, minsToAdd) {
+  var parts = String(hhmm || "08:20").split(":");
+  var d = new Date(2000, 0, 1, parseInt(parts[0], 10) || 8, parseInt(parts[1], 10) || 20);
+  d = new Date(d.getTime() + Math.round(minsToAdd) * 60000);
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  return pad(d.getHours()) + ":" + pad(d.getMinutes());
+}
+
+// Har bir o'quvchi uchun samarali "bekat" koordinatasi — agar admin xaritada
+// bu bekatni qo'lda ko'chirgan bo'lsa (BekatLat/BekatLng), o'shani, aks holda
+// uyning haqiqiy joylashuvini ishlatadi.
+function effectiveStopPoint(entry) {
+  return {
+    lat: entry.bekatLat != null ? entry.bekatLat : entry.lat,
+    lng: entry.bekatLng != null ? entry.bekatLng : entry.lng,
+  };
+}
+
 // Yaqin turadigan bolalarni bitta bekatga (maksimal yurish masofasi ichida) yig'ish.
 function buildStops(entries, maxWalkM) {
   var stops = [];
   entries.forEach(function (e) {
+    var p = effectiveStopPoint(e);
     var best = null,
       bestDist = Infinity;
     stops.forEach(function (s) {
-      var d = estimateWalkMeters(haversineKm(s.lat, s.lng, e.lat, e.lng));
+      var d = estimateWalkMeters(haversineKm(s.lat, s.lng, p.lat, p.lng));
       if (d <= maxWalkM && d < bestDist) {
         best = s;
         bestDist = d;
@@ -29,12 +48,22 @@ function buildStops(entries, maxWalkM) {
     });
     if (best) {
       var n = best.students.length;
-      best.lat = (best.lat * n + e.lat) / (n + 1);
-      best.lng = (best.lng * n + e.lng) / (n + 1);
+      best.lat = (best.lat * n + p.lat) / (n + 1);
+      best.lng = (best.lng * n + p.lng) / (n + 1);
       best.students.push(e);
     } else {
-      stops.push({ lat: e.lat, lng: e.lng, students: [e] });
+      stops.push({ lat: p.lat, lng: p.lng, students: [e] });
     }
+  });
+  // Admin tomonidan "shu avtobusga" deb qo'lda belgilangan (override)
+  // o'quvchisi bor bekatlarni aniqlaymiz — shu bekat o'sha avtobusga
+  // "mahkamlanadi" (pinned), boshqa hisoblash bosqichlari uni siljitmaydi.
+  stops.forEach(function (s) {
+    var forced = null;
+    s.students.forEach(function (st) {
+      if (forced == null && st._forcedBusIndex != null) forced = st._forcedBusIndex;
+    });
+    s.forcedBusIndex = forced;
   });
   return stops;
 }
@@ -70,9 +99,18 @@ function farthestPointSeeds(stops, school, k) {
   return chosen;
 }
 
+// Bekatlarni avtobuslarga taqsimlaydi. Agar bekat sig'imga sig'masa, endi
+// "eng bo'sh avtobusga" majburan tiqilmaydi — buning o'rniga "unassigned"
+// ro'yxatiga tushadi va admin panelda ogohlantirish bilan ko'rsatilib,
+// admin o'zi qo'lda qaysi avtobusga qo'shishni tanlaydi.
 function assignStopsToBuses(stops, busCount, capacities, school) {
-  if (!stops.length || busCount <= 0) return { buses: [], overflow: false };
-  var seeds = farthestPointSeeds(stops, school, busCount);
+  if (!stops.length || busCount <= 0) return { buses: [], unassigned: [] };
+
+  var forcedStops = stops.filter(function (s) { return s.forcedBusIndex != null; });
+  var freeStops = stops.filter(function (s) { return s.forcedBusIndex == null; });
+
+  var seedPool = freeStops.length ? freeStops : stops;
+  var seeds = farthestPointSeeds(seedPool, school, busCount);
   var buses = seeds.map(function (s, i) {
     return { lat: s.lat, lng: s.lng, cap: capacities[i] || DEFAULT_BUS_CAPACITY, stops: [], count: 0 };
   });
@@ -80,11 +118,28 @@ function assignStopsToBuses(stops, busCount, capacities, school) {
     buses.push({ lat: school.lat, lng: school.lng, cap: capacities[buses.length] || DEFAULT_BUS_CAPACITY, stops: [], count: 0 });
   }
 
-  var remaining = stops.slice().sort(function (a, b) {
+  function recenter(b) {
+    var m = b.stops.length;
+    if (!m) return;
+    b.lat = b.stops.reduce(function (sum, st) { return sum + st.lat; }, 0) / m;
+    b.lng = b.stops.reduce(function (sum, st) { return sum + st.lng; }, 0) / m;
+  }
+
+  // 1) Admin tomonidan "shu avtobusga" deb qat'iy belgilangan bekatlar —
+  // sig'imdan qat'i nazar shu avtobusga qo'yiladi (admin ongli ravishda
+  // shuni tanlagan, masalan avvalgi ortiqcha yukni yechish uchun).
+  forcedStops.forEach(function (s) {
+    var i = Math.max(0, Math.min(s.forcedBusIndex, buses.length - 1));
+    buses[i].stops.push(s);
+    buses[i].count += s.students.length;
+    recenter(buses[i]);
+  });
+
+  var remaining = freeStops.slice().sort(function (a, b) {
     return haversineKm(school.lat, school.lng, b.lat, b.lng) - haversineKm(school.lat, school.lng, a.lat, a.lng);
   });
 
-  var overflow = false;
+  var unassigned = [];
   remaining.forEach(function (s) {
     var n = s.students.length;
     var order = buses
@@ -98,29 +153,35 @@ function assignStopsToBuses(stops, busCount, capacities, school) {
       if (b.count + n <= b.cap) {
         b.stops.push(s);
         b.count += n;
-        var m = b.stops.length;
-        b.lat = b.stops.reduce(function (sum, st) { return sum + st.lat; }, 0) / m;
-        b.lng = b.stops.reduce(function (sum, st) { return sum + st.lng; }, 0) / m;
+        recenter(b);
         placed = true;
         break;
       }
     }
-    if (!placed) {
-      var freest = buses.reduce(function (a, b2) { return b2.cap - b2.count > a.cap - a.count ? b2 : a; });
-      freest.stops.push(s);
-      freest.count += n;
-      overflow = true;
-    }
+    if (!placed) unassigned.push(s);
   });
-  return { buses: buses, overflow: overflow };
+  return { buses: buses, unassigned: unassigned };
 }
 
-// Bitta avtobus ichida bekatlarni maktabdan boshlab "eng yaqinini tanlash" (nearest
-// neighbor) usulida tartiblash — aniq optimal emas, lekin amalda yaxshi natija beradi.
+// Bitta avtobus ichida bekatlarni tartiblash: ertalabki yig'ish yo'nalishi
+// odatda eng UZOQ bekatdan boshlanadi va maktabga yaqinlashib boradi (bo'sh
+// avtobus dastavval eng uzoqqa boradi, keyin bolalarni yig'ib maktabga
+// qaytadi) — shuning uchun "boshlash nuqtasi" doim eng uzoq bekat bo'ladi,
+// bu xaritada ham alohida belgi bilan ko'rsatiladi.
 function orderStops(stops, school) {
+  if (!stops.length) return [];
   var remaining = stops.slice();
-  var order = [];
-  var cur = school;
+  var startIdx = 0,
+    startD = -1;
+  remaining.forEach(function (s, i) {
+    var d = haversineKm(school.lat, school.lng, s.lat, s.lng);
+    if (d > startD) {
+      startD = d;
+      startIdx = i;
+    }
+  });
+  var order = [remaining.splice(startIdx, 1)[0]];
+  var cur = order[0];
   while (remaining.length) {
     var bestIdx = 0,
       bestD = Infinity;
@@ -138,19 +199,17 @@ function orderStops(stops, school) {
   return order;
 }
 
-// OSRM'ning bepul ommaviy serveridan haqiqiy haydash masofasi/vaqti va yo'l
-// chizig'ini so'raymiz. Bu ochiq demo server bo'lgani uchun kafolatlangan SLA
-// yo'q — muvaffaqiyatsiz bo'lsa, to'g'ri chiziq asosidagi taxminga tushamiz.
+// OSRM'ning bepul ommaviy serveridan haqiqiy haydash masofasi/vaqti, har bir
+// bo'lak (leg) uchun alohida vaqt (har bir bekatga taxminiy yetib kelish
+// vaqtini hisoblash uchun kerak) va yo'l chizig'ini so'raymiz. Bu ochiq demo
+// server bo'lgani uchun kafolatlangan SLA yo'q — muvaffaqiyatsiz yoki 8
+// soniyadan sekin javob bersa, to'g'ri chiziq asosidagi taxminga tushamiz.
 function fetchOsrmRoute(points) {
   var coordStr = points
     .map(function (p) { return p.lng.toFixed(6) + "," + p.lat.toFixed(6); })
     .join(";");
   var url = "https://router.project-osrm.org/route/v1/driving/" + coordStr + "?overview=full&geometries=geojson";
 
-  // Bepul ochiq server sekin javob bersa ham "Hisoblash" tugmasi cheksiz
-  // kutib turmasin uchun 8 soniyalik xavfsizlik chegarasi qo'yilgan — shu
-  // vaqt ichida javob kelmasa, darhol to'g'ri chiziq asosidagi taxminga
-  // o'tiladi (pastdagi .catch).
   var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
   var timeoutId = controller ? setTimeout(function () { controller.abort(); }, 8000) : null;
 
@@ -164,35 +223,36 @@ function fetchOsrmRoute(points) {
       if (!data.routes || !data.routes[0]) throw new Error("no_route");
       var route = data.routes[0];
       var latlngs = route.geometry.coordinates.map(function (c) { return [c[1], c[0]]; });
-      return { distanceKm: route.distance / 1000, durationMin: route.duration / 60, latlngs: latlngs, real: true };
+      var legs = (route.legs || []).map(function (l) { return { distanceKm: l.distance / 1000, durationMin: l.duration / 60 }; });
+      return { distanceKm: route.distance / 1000, durationMin: route.duration / 60, latlngs: latlngs, legs: legs, real: true };
     })
     .catch(function () {
       if (timeoutId) clearTimeout(timeoutId);
+      var legs = [];
       var distKm = 0;
-      for (var i = 1; i < points.length; i++) distKm += haversineKm(points[i - 1].lat, points[i - 1].lng, points[i].lat, points[i].lng);
-      distKm *= WALK_CIRCUITY_FACTOR;
-      var durationMin = (distKm / 25) * 60; // taxminan 25 km/soat shahar tezligi
+      for (var i = 1; i < points.length; i++) {
+        var d = haversineKm(points[i - 1].lat, points[i - 1].lng, points[i].lat, points[i].lng) * WALK_CIRCUITY_FACTOR;
+        var durMin = (d / 25) * 60; // taxminan 25 km/soat shahar tezligi
+        legs.push({ distanceKm: d, durationMin: durMin });
+        distKm += d;
+      }
+      var durationMin = legs.reduce(function (s, l) { return s + l.durationMin; }, 0);
       var latlngs = points.map(function (p) { return [p.lat, p.lng]; });
-      return { distanceKm: distKm, durationMin: durationMin, latlngs: latlngs, real: false };
+      return { distanceKm: distKm, durationMin: durationMin, latlngs: latlngs, legs: legs, real: false };
     });
 }
 
-function computeRoutes(entries, school, busCount, maxWalkM, capacities) {
-  var withLoc = entries.filter(function (e) { return e.lat != null && e.lng != null; });
-  withLoc.sort(function (a, b) { return a.lat - b.lat || a.lng - b.lng; });
-  var stops = buildStops(withLoc, maxWalkM);
-  var assign = assignStopsToBuses(stops, busCount, capacities, school);
-  var busPromises = assign.buses.map(function (bus) {
-    if (!bus.stops.length) return Promise.resolve({ stops: [], count: 0, order: [], route: null });
-    var ordered = orderStops(bus.stops, school);
-    var points = [school].concat(ordered.map(function (s) { return { lat: s.lat, lng: s.lng }; })).concat([school]);
-    return fetchOsrmRoute(points).then(function (route) {
-      return { stops: bus.stops, count: bus.count, order: ordered, route: route };
-    });
-  });
-  return Promise.all(busPromises).then(function (buses) {
-    return { buses: buses, overflow: assign.overflow, unassignedCount: entries.length - withLoc.length };
-  });
+// Har bir bekatga taxminiy yetib kelish (bolani olish) vaqtini hisoblaydi.
+// legs[0] = maktab->1-bekat (bo'sh avtobusning yo'lga chiqishi), legs[k] =
+// (k-1)-bekat->k-bekat, oxirgi leg = oxirgi bekat->maktab.
+function computeStopClockTimes(legs, stopCount, depClock, dwellMin) {
+  var times = [];
+  var cum = 0;
+  for (var k = 0; k < stopCount; k++) {
+    cum += (legs[k] ? legs[k].durationMin : 0);
+    times.push(addMinutesToClock(depClock, cum + k * dwellMin));
+  }
+  return times;
 }
 
 // Maktabga 08:20 da yetib borish uchun tavsiya etilgan chiqish vaqti.
@@ -204,4 +264,54 @@ function suggestDeparture(durationMin, stopCount, arrivalHHMM) {
   var dep = new Date(arrival.getTime() - totalMin * 60000);
   function pad(n) { return (n < 10 ? "0" : "") + n; }
   return pad(dep.getHours()) + ":" + pad(dep.getMinutes());
+}
+
+var DWELL_MIN_PER_STOP = 1;
+
+function computeRoutes(entries, school, busCount, maxWalkM, capacities, opts) {
+  opts = opts || {};
+  var arrivalHHMM = opts.arrivalHHMM || "08:20";
+  var schoolWalkRadiusM = opts.schoolWalkRadiusM || 0;
+  var resolveOverrideIndex = opts.resolveOverrideIndex || function () { return null; };
+
+  var withLoc = entries.filter(function (e) { return e.lat != null && e.lng != null; });
+  withLoc.forEach(function (e) {
+    e._forcedBusIndex = e.avtobusOverride ? resolveOverrideIndex(e.avtobusOverride) : null;
+  });
+
+  // Maktabga juda yaqin (piyoda radiusi ichida) bolalarni avtobus
+  // hisobidan chiqarib, alohida "piyoda tavsiya etiladi" ro'yxatiga olamiz.
+  var walkers = [];
+  var riders = [];
+  withLoc.forEach(function (e) {
+    var p = effectiveStopPoint(e);
+    var distM = estimateWalkMeters(haversineKm(school.lat, school.lng, p.lat, p.lng));
+    if (schoolWalkRadiusM > 0 && distM <= schoolWalkRadiusM && e._forcedBusIndex == null) {
+      walkers.push(e);
+    } else {
+      riders.push(e);
+    }
+  });
+
+  riders.sort(function (a, b) { return a.lat - b.lat || a.lng - b.lng; });
+  var stops = buildStops(riders, maxWalkM);
+  var assign = assignStopsToBuses(stops, busCount, capacities, school);
+  var busPromises = assign.buses.map(function (bus) {
+    if (!bus.stops.length) return Promise.resolve({ stops: [], count: 0, order: [], route: null, stopTimes: [], departure: null });
+    var ordered = orderStops(bus.stops, school);
+    var points = [school].concat(ordered.map(function (s) { return { lat: s.lat, lng: s.lng }; })).concat([school]);
+    return fetchOsrmRoute(points).then(function (route) {
+      var dep = suggestDeparture(route.durationMin, ordered.length, arrivalHHMM);
+      var stopTimes = computeStopClockTimes(route.legs || [], ordered.length, dep, DWELL_MIN_PER_STOP);
+      return { stops: bus.stops, count: bus.count, order: ordered, route: route, stopTimes: stopTimes, departure: dep };
+    });
+  });
+  return Promise.all(busPromises).then(function (buses) {
+    return {
+      buses: buses,
+      unassigned: assign.unassigned,
+      unassignedCount: entries.length - withLoc.length,
+      walkers: walkers,
+    };
+  });
 }

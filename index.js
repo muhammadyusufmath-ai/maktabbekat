@@ -130,14 +130,8 @@
   // Telefon: +998 prefiks, avtomatik "XX XXX XX XX" formatlash
   // =========================================================
   var phoneInput = document.getElementById("f-phone");
-  phoneInput.addEventListener("input", function () {
-    var caretWasAtEnd = phoneInput.selectionStart === phoneInput.value.length;
-    phoneInput.value = formatPhoneDigits(phoneInput.value);
-    if (caretWasAtEnd) {
-      var len = phoneInput.value.length;
-      phoneInput.setSelectionRange(len, len);
-    }
-    if (phoneDigitsCount(phoneInput.value) === 9) reveal("loc");
+  attachPhoneMask(phoneInput, function (count) {
+    if (count === 9) reveal("loc");
   });
 
   // =========================================================
@@ -251,6 +245,33 @@
     btn.textContent = state ? "Yuborilmoqda…" : "Ro'yxatga qo'shish";
   }
 
+  // Duplikat (avval ro'yxatdan o'tgan) topilganda so'raladigan tasdiq —
+  // brauzerning tabiiy confirm() o'rniga o'z modalimiz (dizaynga mos va
+  // brauzer bloklab qo'ymaydi).
+  function askReplaceConfirm(existingWhen) {
+    return new Promise(function (resolve) {
+      var backdrop = document.getElementById("dup-backdrop");
+      var text = document.getElementById("dup-text");
+      text.textContent =
+        "Bu ism-familiya va sinf bo'yicha oldin ariza topildi" +
+        (existingWhen ? " (" + existingWhen + ")" : "") +
+        ". Agar xato ketgan bo'lsa, ma'lumotlaringizni yangilashingiz mumkin — bu avvalgi arizangizni yangisi bilan almashtiradi.";
+      backdrop.hidden = false;
+      function cleanup(result) {
+        backdrop.hidden = true;
+        cancelBtn.removeEventListener("click", onCancel);
+        replaceBtn.removeEventListener("click", onReplace);
+        resolve(result);
+      }
+      var cancelBtn = document.getElementById("dup-cancel");
+      var replaceBtn = document.getElementById("dup-replace");
+      function onCancel() { cleanup(false); }
+      function onReplace() { cleanup(true); }
+      cancelBtn.addEventListener("click", onCancel);
+      replaceBtn.addEventListener("click", onReplace);
+    });
+  }
+
   document.getElementById("reg-form").addEventListener("submit", function (ev) {
     ev.preventDefault();
     if (busy) return;
@@ -276,36 +297,42 @@
 
     setSubmitting(true);
     apiGet("entries").then(function (list) {
-      var dup = (list || []).some(function (e) {
+      var dup = (list || []).filter(function (e) {
         return (
           String(e.ism || "").toLowerCase() === ism.toLowerCase() &&
           String(e.familiya || "").toLowerCase() === familiya.toLowerCase() &&
           e.sinf === sinf
         );
-      });
-      if (dup && !window.confirm("Bu ism-familiya va sinf allaqachon ro'yxatda bor. Baribir qo'shilsinmi?")) {
-        setSubmitting(false);
+      })[0];
+
+      function finish(promise) {
+        promise
+          .then(function () {
+            setSubmitting(false);
+            document.getElementById("reg-form").reset();
+            showMsg("", false);
+            showToast("✓ Siz ro'yxatdan o'tdingiz!");
+          })
+          .catch(function () {
+            setSubmitting(false);
+            showMsg("Yuborishda xatolik — internetni tekshirib qayta urinib ko'ring.", true);
+          });
+      }
+
+      var telefon = fullPhone(phoneDigits);
+
+      if (dup) {
+        askReplaceConfirm(dup.ts ? new Date(dup.ts).toLocaleDateString("uz-UZ") : null).then(function (wantsReplace) {
+          if (!wantsReplace) {
+            setSubmitting(false);
+            return;
+          }
+          finish(apiUpdateEntry(dup.id, { ism: ism, familiya: familiya, sinf: sinf, telefon: telefon, lat: picked.lat, lng: picked.lng }));
+        });
         return;
       }
-      var payload = {
-        type: "entry",
-        ism: ism,
-        familiya: familiya,
-        sinf: sinf,
-        telefon: fullPhone(phoneDigits),
-        lat: picked.lat,
-        lng: picked.lng,
-      };
-      apiPost(payload)
-        .then(function () {
-          setSubmitting(false);
-          document.getElementById("reg-form").reset();
-          showMsg("Ro'yxatga muvaffaqiyatli qo'shildingiz ✓", false);
-        })
-        .catch(function () {
-          setSubmitting(false);
-          showMsg("Yuborishda xatolik — internetni tekshirib qayta urinib ko'ring.", true);
-        });
+
+      finish(apiPost({ type: "entry", ism: ism, familiya: familiya, sinf: sinf, telefon: telefon, lat: picked.lat, lng: picked.lng }));
     });
   });
 })();

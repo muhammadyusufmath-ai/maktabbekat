@@ -46,7 +46,7 @@
       <div class="progress"><i id="stat-bar" style="width:0%"></i></div>
       <div class="table-wrap" style="margin-top:16px;">
         <table>
-          <thead><tr><th>Sinf</th><th>Ro'yxatda</th><th>Reja</th><th>To'lish</th></tr></thead>
+          <thead><tr><th>Sinf</th><th>Jami o'quvchi</th><th>Avtobusdan foydalanadi</th><th>Ro'yxatda</th><th>Bajarildi</th><th>Foydalanish nisbati</th></tr></thead>
           <tbody id="class-fill-rows"></tbody>
         </table>
       </div>
@@ -55,17 +55,19 @@
     <div class="card">
       <div class="toolbar">
         <h2 style="margin:0;">Ro'yxat</h2>
-        <div class="row2" style="flex:none;">
+        <div class="row2" style="flex:none;flex-wrap:wrap;">
           <button type="button" class="btn-ghost" id="btn-refresh">↻ Yangilash</button>
+          <select id="csv-class-filter" multiple size="1" style="width:auto;min-width:150px;padding:8px 10px;"></select>
           <button type="button" class="btn-ghost" id="btn-csv">⬇ CSV yuklab olish</button>
         </div>
       </div>
+      <p class="hint" style="margin:-8px 0 12px;">CSV filtri: hech narsa tanlanmasa — hammasi; Ctrl/Cmd bosib bir nechta sinfni birga tanlashingiz mumkin.</p>
       <div class="table-wrap">
         <table>
           <thead><tr>
-            <th>#</th><th>Ism</th><th>Familiya</th><th>Telefon</th><th>Joylashuv</th><th>Manzil</th><th>Vaqt</th><th></th>
+            <th>#</th><th>Ism</th><th>Familiya</th><th>Telefon</th><th>Turar joy</th><th>Joylashuv</th><th>Manzil</th><th>Vaqt</th><th></th>
           </tr></thead>
-          <tbody id="rows"><tr><td colspan="8" class="empty">Yuklanmoqda…</td></tr></tbody>
+          <tbody id="rows"><tr><td colspan="9" class="empty">Yuklanmoqda…</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -76,10 +78,10 @@
   <div class="tab-panel" id="tab-sinflar" hidden>
     <div class="card">
       <h2>Sinflar ro'yxati</h2>
-      <p class="hint">Ro'yxatdan o'tish formasidagi dropdown va har bir sinf uchun "reja" (o'quvchilar soni) shu yerda boshqariladi.</p>
+      <p class="hint">Ro'yxatdan o'tish formasidagi dropdown shu yerdan to'ldiriladi. "Jami o'quvchi" — sinfdagi barcha bolalar soni, "Avtobusdan foydalanadi" — shulardan nechtasi avtobusga yoziladi (piyoda yoki ota-onasi olib boradiganlarni chiqarib tashlab). Ro'yxatdan o'tish % shu ikkinchi songa nisbatan hisoblanadi.</p>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Sinf</th><th>Reja (nechta o'quvchi)</th><th></th></tr></thead>
+          <thead><tr><th>Sinf</th><th>Jami o'quvchi</th><th>Avtobusdan foydalanadi</th><th></th></tr></thead>
           <tbody id="classes-rows"></tbody>
         </table>
       </div>
@@ -120,7 +122,7 @@
   <div class="tab-panel" id="tab-haydovchilar" hidden>
     <div class="card">
       <h2>Haydovchilar va avtobuslar</h2>
-      <p class="hint">Har bir avtobus uchun raqami, haydovchi ismi, telefoni, rangi va sig'imi (necha bola).</p>
+      <p class="hint">Har bir avtobus uchun raqami, haydovchi ismi, telefoni, rangi va sig'imi (necha bola). "Yo'nalishlar" bo'limida avtobuslar shu tartibda (raqam bo'yicha) hisoblanadi.</p>
       <div class="table-wrap">
         <table>
           <thead><tr><th>Avtobus №</th><th>Haydovchi</th><th>Telefon</th><th>Rang</th><th>Sig'im</th><th></th></tr></thead>
@@ -138,11 +140,16 @@
   <!-- ===================== YO'NALISHLAR ===================== -->
   <div class="tab-panel" id="tab-yonalishlar" hidden>
     <div class="card">
-      <h2>Maktab joylashuvi</h2>
-      <p class="hint" id="school-status">Belgilanmagan.</p>
-      <div class="row2">
-        <button type="button" class="btn-ghost" id="btn-school-gps">📍 Hozirgi joylashuvni maktab sifatida belgilash</button>
+      <div class="toolbar">
+        <h2 style="margin:0;">Maktab joylashuvi</h2>
+        <button type="button" class="btn-ghost" id="btn-school-lock">🔓 Maxkamlash</button>
       </div>
+      <p class="hint" id="school-status">Belgilanmagan.</p>
+      <div id="map-school"></div>
+      <div class="row2" style="margin-top:10px;">
+        <button type="button" class="btn-accent" id="btn-school-gps">📍 Hozirgi joylashuvimni belgilash</button>
+      </div>
+      <p class="hint" style="margin-top:10px;">Xaritani bosib yoki belgini surib ham joylashtirishingiz mumkin. Belgilab bo'lgach, tasodifan tegib o'zgartirib qo'ymaslik uchun "Maxkamlash" tugmasini bosing.</p>
     </div>
 
     <div class="card">
@@ -153,20 +160,47 @@
           <input type="text" inputmode="numeric" id="rt-buscount" value="5">
         </div>
         <div>
-          <label for="rt-maxwalk">Maksimal yurish masofasi (metr)</label>
+          <label for="rt-maxwalk">Bekatgacha maksimal yurish (metr)</label>
           <input type="text" inputmode="numeric" id="rt-maxwalk" value="500">
         </div>
       </div>
+      <div class="row2">
+        <div>
+          <label for="rt-walkradius">Maktabgacha piyoda radiusi (metr)</label>
+          <input type="text" inputmode="numeric" id="rt-walkradius" value="0" placeholder="0 = o'chirilgan">
+        </div>
+        <div>
+          <label for="rt-day">Qaysi kun uchun hisoblansin</label>
+          <select id="rt-day"></select>
+        </div>
+      </div>
+      <p class="hint" style="margin:2px 0 0;">Piyoda radiusi 0 bo'lsa, bu tekshiruv o'chiriladi. "Kun" — yotoqxonada yashovchi o'quvchilar faqat o'ziga belgilangan kunlarda avtobusga qo'shiladi (O'quvchi tahrirlash orqali belgilanadi), kundalik o'quvchilar har doim hisobga olinadi.</p>
       <button type="button" class="btn-primary" id="btn-compute" style="margin-top:18px;">Yo'nalishlarni hisoblash</button>
       <div class="form-error" id="route-msg"></div>
+    </div>
+
+    <div class="card" id="walkers-card" hidden>
+      <h2>🚶 Piyoda boradigan o'quvchilar</h2>
+      <p class="hint">Maktabga belgilangan piyoda radiusidan yaqin joyda turishadi — avtobusga qo'shilmadi.</p>
+      <div id="walkers-list"></div>
+    </div>
+
+    <div class="card" id="unassigned-card" hidden>
+      <h2>⚠️ Sig'may qolgan bolalar</h2>
+      <p class="hint">Bu bekatlar hech qaysi avtobusning bo'sh joyiga sig'madi. Qaysi avtobusga qo'shishni tanlang.</p>
+      <div id="unassigned-list"></div>
     </div>
 
     <div class="card" id="route-results" hidden>
       <div class="toolbar">
         <h2 style="margin:0;">Natija</h2>
-        <select id="route-view-select" style="width:auto;padding:8px 10px;"></select>
+        <div class="row2" style="flex:none;">
+          <select id="route-view-select" style="width:auto;padding:8px 10px;"></select>
+          <button type="button" class="btn-ghost" id="btn-pdf-all">📄 Hammasi PDF</button>
+        </div>
       </div>
       <div id="map-routes"></div>
+      <p class="hint" style="margin-top:8px;">🚩 katta belgi — yo'nalish boshlanish nuqtasi (eng uzoq bekat). Bekat belgisini surib, chiqish nuqtasini qo'lda to'g'irlash mumkin. O'quvchi (kichik nuqta) ustiga bosilsa ma'lumotlari ochiladi.</p>
       <div id="bus-summaries" style="margin-top:16px;"></div>
     </div>
   </div>
@@ -177,9 +211,18 @@
       <div id="modal-body"></div>
     </div>
   </div>
+
+  <div id="entry-edit-backdrop" class="modal-backdrop" hidden>
+    <div class="modal-card">
+      <button type="button" class="modal-close" id="entry-edit-close">✕</button>
+      <div id="entry-edit-body"></div>
+    </div>
+  </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="config.js"></script>
 <script src="shared.js"></script>
 <script src="routing.js"></script>

@@ -73,6 +73,68 @@ function fullPhone(formattedDigits) {
   return "+998 " + formattedDigits;
 }
 
+// Istalgan telefon input'iga +998 formatlash va raqamli klaviaturani ulaydi.
+// onComplete(digitsCount) — har bir o'zgarishda chaqiriladi (9 ta raqam
+// to'lgan-to'lmaganini tekshirish uchun).
+function attachPhoneMask(inputEl, onComplete) {
+  if (!inputEl) return;
+  inputEl.setAttribute("inputmode", "numeric");
+  inputEl.setAttribute("type", "tel");
+  inputEl.setAttribute("autocomplete", "off");
+  inputEl.addEventListener("input", function () {
+    var caretWasAtEnd = inputEl.selectionStart === inputEl.value.length;
+    inputEl.value = formatPhoneDigits(inputEl.value);
+    if (caretWasAtEnd) {
+      var len = inputEl.value.length;
+      inputEl.setSelectionRange(len, len);
+    }
+    if (onComplete) onComplete(phoneDigitsCount(inputEl.value));
+  });
+}
+
+// "+998 90 123 45 67" yoki "90 123 45 67" kabi to'liq/formatlangan
+// qiymatdan faqat 9 ta mahalliy raqamni ("XX XXX XX XX") ajratib oladi —
+// haydovchi telefonini tahrirlashda mavjud qiymatni inputga qo'yish uchun.
+function localPhoneDigitsFromFull(full) {
+  var digits = String(full || "").replace(/\D/g, "");
+  if (digits.indexOf("998") === 0) digits = digits.slice(3);
+  return formatPhoneDigits(digits);
+}
+
+// ---- Yotoqxona jadvali uchun hafta kunlari ----
+var WEEKDAYS_UZ = [
+  { code: "Dush", label: "Dushanba" },
+  { code: "Sesh", label: "Seshanba" },
+  { code: "Chor", label: "Chorshanba" },
+  { code: "Pay", label: "Payshanba" },
+  { code: "Juma", label: "Juma" },
+  { code: "Shan", label: "Shanba" },
+  { code: "Yak", label: "Yakshanba" },
+];
+
+// Sahifaning pastida bir necha soniyaga chiqib, o'zi yo'qoladigan
+// bildirishnoma ("toast"). Ishlashi uchun sahifada <div id="toast-wrap">
+// bo'lishi kerak.
+function showToast(message, ms) {
+  var wrap = document.getElementById("toast-wrap");
+  if (!wrap) { return; }
+  var el = document.createElement("div");
+  el.className = "toast";
+  el.textContent = message;
+  wrap.appendChild(el);
+  requestAnimationFrame(function () { el.classList.add("show"); });
+  setTimeout(function () {
+    el.classList.remove("show");
+    setTimeout(function () { el.remove(); }, 300);
+  }, ms || 4000);
+}
+
+function todayWeekdayCode() {
+  // JS: 0=Yakshanba..6=Shanba
+  var map = ["Yak", "Dush", "Sesh", "Chor", "Pay", "Juma", "Shan"];
+  return map[new Date().getDay()];
+}
+
 // ---- backend bilan ishlash (Apps Script Web App) ----
 function apiGet(type) {
   if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.indexOf("BU_YERGA") === 0) return Promise.resolve([]);
@@ -86,6 +148,10 @@ function apiPost(payload) {
     return Promise.reject(new Error("not_configured"));
   }
   return fetch(APPS_SCRIPT_URL, { method: "POST", mode: "no-cors", body: JSON.stringify(payload) });
+}
+
+function apiUpdateEntry(id, fields) {
+  return apiPost({ type: "updateEntry", id: id, fields: fields });
 }
 
 // Bittalab, foydalanuvchi bosganda chaqiriladigan teskari geokodlash

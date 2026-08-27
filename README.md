@@ -78,13 +78,20 @@ Admin panel manzili — asosiy havola oxiriga `admin.html` qo'shilgan holda.
   chiqadi.
 - **Haydovchilar** — har bir avtobus uchun raqami, haydovchi ismi,
   telefoni, rangi (xarita chizig'i shu rangda chiziladi) va sig'imi.
-- **Yo'nalishlar** — avval maktab joylashuvini belgilang (u yerda
-  turib GPS tugmasini bosing), so'ng avtobuslar sonini va maksimal
-  yurish masofasini kiriting va **Yo'nalishlarni hisoblash**ni bosing.
-  Natijada: har bir avtobus uchun xaritada chizilgan yo'l, km, daqiqa,
-  bola soni va tavsiya etilgan chiqish vaqti (08:20 ga yetib borish
-  hisobidan), pastida esa shu avtobusdagi o'quvchilar ro'yxati — ustiga
-  bosilsa to'liq ma'lumot (sinf, telefon, joylashuv) ochiladi.
+- **Yo'nalishlar** — avval maktab joylashuvini xaritadan tanlang (bosing,
+  belgini suring yoki GPS tugmasidan foydalaning), keyin tasodifan
+  o'zgarib ketmasligi uchun "Maxkamlash"ni bosing. So'ng avtobuslar
+  sonini, bekatgacha maksimal yurish masofasini, kerak bo'lsa maktabgacha
+  piyoda radiusini va qaysi hafta kuni uchun hisoblanayotganini kiriting,
+  **Yo'nalishlarni hisoblash**ni bosing. Natijada: piyoda boradigan
+  bolalar ro'yxati (agar radius kiritilgan bo'lsa), sig'may qolgan
+  bolalar uchun qo'lda avtobus tanlash imkoniyati (agar bo'lsa), va har
+  bir avtobus uchun xaritada chizilgan yo'l (🚩 — boshlash nuqtasi, har
+  bir o'quvchi uyi ham nuqta bilan ko'rinadi va bosilsa ma'lumoti
+  chiqadi, bekat belgisini surib chiqish nuqtasini to'g'irlash mumkin),
+  km, daqiqa, bola soni, chiqish vaqti va har bir bolaning taxminiy olib
+  ketilish vaqti, pastida esa shu avtobusdagi o'quvchilar ro'yxati (ustiga
+  bosilsa to'liq ma'lumot) va PDF yuklab olish tugmasi.
 
 ### Yo'nalish hisoblash qanday ishlaydi (va cheklovlari)
 
@@ -101,9 +108,21 @@ Bu **amaliy taxmin** — matematik jihatdan "eng optimal" yechim emas,
 lekin odatda yaxshi natija beradi. Uy bilan bekat orasidagi "yurish"
 masofasi to'g'ri chiziq asosida taxmin qilinadi (haqiqiy piyoda yo'lidan
 biroz qisqaroq bo'lishi mumkin). OSRM'ning bepul serveri vaqti-vaqti
-bilan ishlamasligi mumkin — shunday holatda tizim avtomatik ravishda
-to'g'ri chiziq asosidagi taxminga o'tadi va buni natijada "(taxminiy)"
-deb belgilaydi.
+bilan ishlamasligi yoki sekin javob berishi mumkin (8 soniyadan ko'p
+kutmaydi) — shunday holatda tizim avtomatik ravishda to'g'ri chiziq
+asosidagi taxminga o'tadi va buni natijada "(taxminiy)" deb belgilaydi.
+
+Har bir bolaning "taxminiy olib ketilish vaqti" ham shu haydash
+vaqtlaridan hisoblanadi (avtobus har bekatda ~1 daqiqa to'xtaydi deb
+faraz qilinadi) — bu ham aniq jadval emas, bir necha daqiqalik farq
+bo'lishi mumkin, shuning uchun ota-onalarga "taxminan shu vaqtda tayyor
+bo'ling" deb aytish tavsiya etiladi.
+
+Agar bir bekat hech qaysi avtobusning bo'sh joyiga sig'masa, tizim uni
+majburan tiqishtirmaydi — "Sig'may qolgan bolalar" deb ko'rsatadi va
+qaysi avtobusga qo'shishni siz hal qilasiz (masalan sig'imi kattaroq
+yoki yo'nalishi yaqinroq avtobusni tanlab). Bu tanlov saqlanib qoladi va
+keyingi hisoblashlarda ham o'sha avtobusga biriktirilaveradi.
 
 ---
 
@@ -118,30 +137,99 @@ deb belgilaydi.
 - Admin panel kaliti (`ADMIN_KEY`) va "Administrator" bo'limi jiddiy
   himoya emas — havolalarni faqat ishonchli odamlarga bering.
 
+### Ro'yxatdan o'tgan bolalar ma'lumoti xavfsizmi?
+
+Ha. Ma'lumotlar (ism, familiya, sinf, telefon, joylashuv) **Google
+Sheets**'dagi **Royxat** varag'ida saqlanadi — bu sayt kodidan (GitHub'dagi
+`index.html`, `style.css`, `*.js` fayllar) butunlay alohida joy. Saytga
+yangi funksiya qo'shish, dizaynni o'zgartirish yoki fayllarni GitHub'da
+qayta yuklash — bularning hech biri "Royxat" varag'idagi mavjud qatorlarga
+tegmaydi, chunki kod u yerga faqat: (1) yangi bola ro'yxatdan o'tganda bitta
+qator **qo'shadi**, (2) admin panelda "o'chirish" bosilganda faqat o'sha
+bitta qatorni **o'chiradi**. Boshqa hech qanday amal bu varaqni tozalamaydi
+yoki qayta yozmaydi.
+
+Faqat bitta holatda ehtiyot bo'lish kerak: agar kelajakda "Royxat"
+varag'ining **ustunlar tuzilishi** o'zgartirilsa (masalan yangi ustun
+qo'shilsa — avvalgi versiyadan yangilashda bir marta shunday bo'lgan edi,
+"MIGRATSIYA" bo'limiga qarang). Oddiy dizayn/funksiya yangilanishlarida bu
+kerak bo'lmaydi. Har ehtimolga qarshi, katta yangilanishdan oldin Google
+Sheets faylini **File → Make a copy** (yoki **File → Download → Microsoft
+Excel**) orqali zaxira nusxalab qo'yish tavsiya etiladi — bir necha soniya
+ketadi, lekin butunlay xotirjam bo'lasiz.
+
 ---
+
+## YANGI IMKONIYATLAR (so'nggi yangilanish)
+
+- **Ro'yxat**: jami son endi "Sinflar"da kiritgan aniq sondan hisoblanadi;
+  har bir sinf uchun necha foiz bola avtobusdan foydalanishi/foydalanmasligi
+  raqamlarda ko'rinadi; har bir yozuvni ✎ orqali tahrirlash (shu jumladan
+  yotoqxona jadvali) mumkin; CSV yuklab olishda sinf(lar) bo'yicha filtr bor.
+- **Ro'yxatdan o'tish**: yuborilgach "Siz ro'yxatdan o'tdingiz" bildirishnomasi
+  chiqadi; bir xil ism-familiya-sinf topilsa, "avval ro'yxatdan o'tgansiz"
+  deb ogohlantiradi va xohlasa ma'lumotni yangilash (avvalgisini
+  almashtirish) imkonini beradi; mobil telefonda fokusda ekran
+  "yaqinlashib qolish" xatosi tuzatildi.
+- **Sinflar**: endi "Jami o'quvchi" va "Avtobusdan foydalanadi" alohida
+  kiritiladi.
+- **O'quvchilar ro'yxati**: sinf endi dropdown orqali tanlanadi (xato
+  yozilishning oldini oladi).
+- **Haydovchilar**: telefon +998 formatida, raqamli klaviatura bilan
+  kiritiladi.
+- **Yo'nalishlar**: maktab joylashuvini endi xaritadan tanlash (bosish/
+  surish) mumkin, tasodifiy o'zgarishning oldini olish uchun "Maxkamlash"
+  tugmasi qo'shildi; natijadagi xaritada har bir o'quvchining uy nuqtasi
+  ham ko'rinadi (bosilsa ma'lumoti chiqadi); bekat belgisini surib chiqish
+  nuqtasini qo'lda to'g'irlash mumkin; yo'nalish boshlanish nuqtasi 🚩
+  bilan alohida ko'rsatiladi; har bir bola oldiga taxminan soat nechida
+  kelishi ko'rsatiladi; maktabga juda yaqin (siz belgilagan piyoda radiusi
+  ichidagi) bolalar avtobusdan chiqarilib, alohida "piyoda tavsiya
+  etiladi" deb ko'rsatiladi; avtobus sig'imidan oshib ketgan bolalar endi
+  majburan tiqishtirilmaydi — "Sig'may qolgan bolalar" bo'limida
+  ko'rsatilib, qaysi avtobusga qo'shishni siz tanlaysiz; yotoqxonada
+  yashovchi o'quvchilar uchun har biriga alohida "qaysi kunlari
+  avtobusdan foydalanadi" jadvali (Ro'yxat bo'limida ✎ orqali) va
+  hisoblashda "qaysi kun uchun" tanlovi qo'shildi; har bir avtobus uchun
+  xarita rasmi + haydovchi ma'lumotlari + o'quvchilar ro'yxati (vaqti
+  bilan) PDF qilib yuklab olinadi.
+
+Telefon raqamlarning Google Sheets'da "+998..." FORMULA xatosi ko'rsatishi
+ham tuzatildi (endi ustun doim oddiy matn formatida saqlanadi). Agar
+avvalgi jadvalingizda allaqachon shunday xato ko'rinayotgan eski
+qatorlar bo'lsa: **Telefon** ustunini tanlab, **Format → Number → Plain
+text** qiling, so'ng xato ko'ringan katakchalarni qo'lda qayta kiriting
+(masalan boshiga bitta bo'sh belgi qo'yib, o'chirib qaytadan saqlang) —
+bu faqat ko'rinishni tuzatadi, hech qanday boshqa ma'lumotga tegmaydi.
 
 ## MIGRATSIYA (avvalgi versiyadan yangilayotganlar uchun)
 
-Bu versiyada "Royxat" jadvalining tuzilishi o'zgardi: yangi **ID** va
-**Telefon** ustunlari qo'shildi. Agar avval sinov uchun bir nechta yozuv
-kiritgan bo'lsangiz:
+**Bu safar hech narsani o'chirish shart emas — barcha o'zgarishlar faqat
+yangi ustunlar qo'shish orqali amalga oshirildi.** "Royxat" varag'idagi
+mavjud yozuvlaringiz (ism, familiya, sinf, telefon, joylashuv) butunlay
+saqlanib qoladi; kod ularga yangi ustunlar (TurarJoy, Kunlar va h.k.)
+qo'shib qo'yadi, xolos — o'zingiz "Sinflar" bo'limidagi "Avtobusdan
+foydalanadi" sonlarini to'ldirmaguningizcha, "Ro'yxat" bo'limidagi umumiy
+foiz eski "taxminan 270–300" ko'rinishida qolaveradi, keyin avtomatik
+aniq songa o'tadi.
 
-1. Google Sheets'da **Royxat** varag'ini (tab) o'ng tugma bilan bosib
-   **Delete** qiling (sinov yozuvlarini yo'qotasiz, lekin eng oddiy yo'l).
-   Keyingi ro'yxatdan o'tish avtomatik to'g'ri tuzilmada qayta yaratadi.
-   *(Haqiqiy ro'yxat yig'ilib bo'lgan bo'lsa, buning o'rniga qo'lda **A**
-   va **F** ustunlarini kiritib, sarlavhalarni **ID** va **Telefon** deb
-   o'zgartiring.)*
-2. Apps Script kodini yangilash uchun: Apps Script muharririda eski kodni
+Yangilash uchun:
+
+1. Apps Script kodini yangilash: Apps Script muharririda eski kodni
    o'chirib, yangi `google-apps-script.gs` matnini joylashtiring, **Save**.
-3. **Deploy → Manage deployments** ga o'ting, mavjud deploymentning
+2. **Deploy → Manage deployments** ga o'ting, mavjud deploymentning
    qalam (edit) belgisini bosing, **Version: New version** ni tanlang,
    **Deploy** ni bosing. *(Muhim: "New deployment" emas, "Manage
    deployments" orqali yangilang — aks holda havola o'zgarib, `config.js`
    dagi eski havola ishlamay qoladi.)*
-4. GitHub repozitoriyingizga yangilangan fayllarni qayta yuklang
+3. GitHub repozitoriyingizga yangilangan fayllarni qayta yuklang
    (**Add file → Upload files** — bir xil nomdagi fayllar avtomatik
-   almashtiriladi).
+   almashtiriladi). `config.js` faylingizni ustidan yozib yubormang —
+   undagi `APPS_SCRIPT_URL` va `ADMIN_KEY` qiymatlaringizni saqlab qoling
+   (agar diqqatsizlik bilan almashtirib qo'ysangiz, "saqlanmadi —
+   internetni tekshiring" xatosi qaytadan chiqadi).
+4. Ehtiyot chorasi sifatida (majburiy emas): yangilashdan oldin Google
+   Sheets faylini **File → Make a copy** qilib zaxira nusxa oling.
 
 ---
 
