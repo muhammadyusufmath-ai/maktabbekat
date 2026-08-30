@@ -42,6 +42,7 @@
     panelInited = true;
     setupTabs();
     setupDaySelect();
+    setupDirectionToggle();
     loadRoyxat();
   }
 
@@ -57,7 +58,9 @@
         if (btn.dataset.tab === "sinflar") loadClasses();
         else if (btn.dataset.tab === "roster") loadRoster();
         else if (btn.dataset.tab === "haydovchilar") loadDrivers();
-        else if (btn.dataset.tab === "yonalishlar") { loadSchoolStatus(); setTimeout(initSchoolMapIfNeeded, 50); }
+        else if (btn.dataset.tab === "kuratorlar") loadKurators();
+        else if (btn.dataset.tab === "sozlamalar") loadSozlamalar();
+        else if (btn.dataset.tab === "yonalishlar") { loadSchoolStatus(); refreshManualBekatEntries(); setTimeout(function () { initSchoolMapIfNeeded(); initManualBekatMapIfNeeded(); }, 50); }
         else if (btn.dataset.tab === "royxat") loadRoyxat();
       });
     });
@@ -67,6 +70,16 @@
     var sel = document.getElementById("rt-day");
     sel.innerHTML = WEEKDAYS_UZ.map(function (d) { return '<option value="' + d.code + '">' + d.label + "</option>"; }).join("");
     sel.value = todayWeekdayCode();
+  }
+
+  function setupDirectionToggle() {
+    var radios = document.querySelectorAll('input[name="rt-direction"]');
+    function sync() {
+      var checked = document.querySelector('input[name="rt-direction"]:checked');
+      document.getElementById("rt-ketish-vaqti-wrap").hidden = !checked || checked.value !== "ketish";
+    }
+    radios.forEach(function (r) { r.addEventListener("change", sync); });
+    sync();
   }
 
   // ================= RO'YXAT =================
@@ -144,16 +157,20 @@
         : "—";
       var when = e.ts ? new Date(e.ts).toLocaleString("uz-UZ") : "—";
       var rowId = "addr-" + idx;
-      var turarJoy = e.turarJoy === "yotoqxona"
-        ? "Yotoqxona" + ((e.kunlar || []).length ? " (" + e.kunlar.join(", ") + ")" : " (kun belgilanmagan)")
-        : "Kundalik";
+      var kelishAll = (e.kelishKunlari || []).length >= 5;
+      var ketishAll = (e.ketishKunlari || []).length >= 5;
+      var schedNote = kelishAll && ketishAll ? "Har kuni" : "Maxsus jadval";
+      var telefonBroken = /error|#N\/A|NaN/i.test(String(e.telefon || ""));
+      var telefonCell = telefonBroken
+        ? '<span style="color:var(--danger);" title="Bu raqam Sheets tomonidan buzilgan — ota-onadan qayta so\'rang">⚠ buzilgan</span>'
+        : esc(e.telefon || "—");
       html.push(
         "<tr>" +
           '<td class="num">' + idx + "</td>" +
           "<td>" + esc(e.ism) + "</td>" +
           "<td>" + esc(e.familiya) + "</td>" +
-          "<td>" + esc(e.telefon || "—") + "</td>" +
-          "<td>" + esc(turarJoy) + "</td>" +
+          "<td>" + telefonCell + "</td>" +
+          "<td>" + esc(schedNote) + "</td>" +
           "<td>" + loc + "</td>" +
           '<td id="' + rowId + '">' +
             (e.lat != null
@@ -215,10 +232,10 @@
         if (c !== 0) return c;
         return String(a.familiya || "").localeCompare(String(b.familiya || ""));
       });
-      var rows = [["#", "Ism", "Familiya", "Sinf", "Telefon", "Turar joy", "Kunlar", "Lat", "Lng", "Xarita havolasi", "Vaqt"]];
+      var rows = [["#", "Ism", "Familiya", "Sinf", "Telefon", "Kelish kunlari", "Ketish kunlari", "Lat", "Lng", "Xarita havolasi", "Vaqt"]];
       sorted.forEach(function (e, i) {
         rows.push([
-          i + 1, e.ism, e.familiya, e.sinf, e.telefon || "", e.turarJoy || "kundalik", (e.kunlar || []).join(" "),
+          i + 1, e.ism, e.familiya, e.sinf, e.telefon || "", (e.kelishKunlari || []).join(" "), (e.ketishKunlari || []).join(" "),
           e.lat != null ? e.lat : "", e.lng != null ? e.lng : "",
           e.lat != null ? mapsLinkFor(e.lat, e.lng) : "", e.ts || "",
         ]);
@@ -234,59 +251,49 @@
     var classOptions = (lastClasses.length ? lastClasses.map(function (c) { return c.sinf; }) : [entry.sinf]).slice();
     if (classOptions.indexOf(entry.sinf) === -1) classOptions.push(entry.sinf);
     classOptions.sort(compareClasses);
-    var isDorm = entry.turarJoy === "yotoqxona";
+    function dayCheckboxes(cssClass, selectedDays) {
+      return WEEKDAYS_UZ.map(function (d) {
+        var checked = (selectedDays || []).indexOf(d.code) !== -1 ? " checked" : "";
+        return '<label style="display:flex;align-items:center;gap:5px;font-weight:400;margin:0;flex:none;width:auto;"><input type="checkbox" class="' + cssClass + '" value="' + d.code + '"' + checked + ' style="width:auto;"> ' + d.label + "</label>";
+      }).join("");
+    }
     body.innerHTML =
       "<h3>Ma'lumotni tahrirlash</h3>" +
       '<label>Ism</label><input type="text" id="ee-ism" value="' + esc(entry.ism) + '">' +
       '<label>Familiya</label><input type="text" id="ee-familiya" value="' + esc(entry.familiya) + '">' +
       '<label>Sinf</label><select id="ee-sinf">' + classOptions.map(function (c) { return '<option value="' + esc(c) + '"' + (c === entry.sinf ? " selected" : "") + ">" + esc(c) + "</option>"; }).join("") + "</select>" +
       '<label>Telefon</label><div class="phone-row"><span class="phone-prefix">+998</span><input type="tel" id="ee-phone" value="' + esc(localPhoneDigitsFromFull(entry.telefon)) + '"></div>' +
-      '<label>Turar joy</label>' +
-      '<div class="row2"><label style="display:flex;align-items:center;gap:6px;font-weight:400;margin:0;"><input type="radio" name="ee-turarjoy" value="kundalik"' + (!isDorm ? " checked" : "") + ' style="width:auto;"> Kundalik</label>' +
-      '<label style="display:flex;align-items:center;gap:6px;font-weight:400;margin:0;"><input type="radio" name="ee-turarjoy" value="yotoqxona"' + (isDorm ? " checked" : "") + ' style="width:auto;"> Yotoqxona</label></div>' +
-      '<div id="ee-days" style="margin-top:12px;' + (isDorm ? "" : "display:none;") + '">' +
-        '<label>Avtobusdan foydalanadigan kunlar</label>' +
-        '<div class="row2" style="flex-wrap:wrap;">' +
-        WEEKDAYS_UZ.map(function (d) {
-          var checked = (entry.kunlar || []).indexOf(d.code) !== -1 ? " checked" : "";
-          return '<label style="display:flex;align-items:center;gap:5px;font-weight:400;margin:0;flex:none;width:auto;"><input type="checkbox" class="ee-day" value="' + d.code + '"' + checked + ' style="width:auto;"> ' + d.label + "</label>";
-        }).join("") +
-        "</div></div>" +
+      '<label>Kelish kunlari (ertalab avtobusdan foydalanadi)</label>' +
+      '<div class="row2" style="flex-wrap:wrap;">' + dayCheckboxes("ee-kelish-day", entry.kelishKunlari) + "</div>" +
+      '<label style="margin-top:16px;">Ketish kunlari (maktabdan uyga avtobusdan foydalanadi)</label>' +
+      '<div class="row2" style="flex-wrap:wrap;">' + dayCheckboxes("ee-ketish-day", entry.ketishKunlari) + "</div>" +
+      '<p class="hint" style="margin-top:8px;">Oddiy kundalik o\'quvchi uchun ikkalasida ham barcha kunlarni belgilangan qoldiring. Faqat ma\'lum kunlari (masalan yotoqxonada yashovchi) foydalanadigan o\'quvchilar uchun kerakli kunlarnigina belgilang.</p>' +
       '<button type="button" class="btn-primary" id="ee-save">Saqlash</button>' +
       '<div class="form-error" id="ee-msg"></div>';
 
-    Array.prototype.forEach.call(body.querySelectorAll('input[name="ee-turarjoy"]'), function (r) {
-      r.addEventListener("change", function () {
-        var checked = body.querySelector('input[name="ee-turarjoy"]:checked');
-        document.getElementById("ee-days").style.display = checked && checked.value === "yotoqxona" ? "" : "none";
-      });
-    });
     attachPhoneMask(document.getElementById("ee-phone"), function () {});
 
     document.getElementById("ee-save").addEventListener("click", function () {
+      var btn = document.getElementById("ee-save");
       var msg = document.getElementById("ee-msg");
-      var turarJoy = document.querySelector('input[name="ee-turarjoy"]:checked').value;
-      var kunlar = turarJoy === "yotoqxona"
-        ? Array.prototype.filter.call(body.querySelectorAll(".ee-day"), function (c) { return c.checked; }).map(function (c) { return c.value; })
-        : [];
+      var kelishKunlari = Array.prototype.filter.call(body.querySelectorAll(".ee-kelish-day"), function (c) { return c.checked; }).map(function (c) { return c.value; });
+      var ketishKunlari = Array.prototype.filter.call(body.querySelectorAll(".ee-ketish-day"), function (c) { return c.checked; }).map(function (c) { return c.value; });
       var fields = {
         ism: document.getElementById("ee-ism").value.trim(),
         familiya: document.getElementById("ee-familiya").value.trim(),
         sinf: document.getElementById("ee-sinf").value,
         telefon: fullPhone(document.getElementById("ee-phone").value),
-        turarJoy: turarJoy,
-        kunlar: kunlar.join(","),
+        kelishKunlari: kelishKunlari.join(","),
+        ketishKunlari: ketishKunlari.join(","),
       };
-      apiUpdateEntry(entry.id, fields)
+      withSaving(btn, function () { return apiUpdateEntry(entry.id, fields); }, msg)
         .then(function () {
-          msg.textContent = "Saqlandi ✓";
-          msg.className = "form-ok";
           setTimeout(function () {
             document.getElementById("entry-edit-backdrop").hidden = true;
             loadRoyxat();
-          }, 500);
+          }, 400);
         })
-        .catch(function () { msg.textContent = "Saqlanmadi — internetni tekshiring."; msg.className = "form-error"; });
+        .catch(function () {});
     });
 
     document.getElementById("entry-edit-backdrop").hidden = false;
@@ -330,10 +337,9 @@
         };
       })
       .filter(function (c) { return c.sinf; });
+    var btn = document.getElementById("btn-save-classes");
     var msg = document.getElementById("classes-msg");
-    apiPost({ type: "classes", items: items })
-      .then(function () { msg.textContent = "Saqlandi ✓"; msg.className = "form-ok"; })
-      .catch(function () { msg.textContent = "Saqlanmadi — internetni tekshiring."; msg.className = "form-error"; });
+    withSaving(btn, function () { return apiPost({ type: "classes", items: items }); }, msg).catch(function () {});
   });
 
   // ================= ROSTER =================
@@ -362,18 +368,6 @@
   document.getElementById("roster-rows").addEventListener("click", function (ev) {
     if (ev.target.classList.contains("tbl-del")) ev.target.closest("tr").remove();
   });
-  document.getElementById("btn-bulk-add").addEventListener("click", function () {
-    var raw = document.getElementById("roster-bulk").value;
-    var lines = raw.split("\n").map(function (l) { return l.trim(); }).filter(Boolean);
-    var html = lines
-      .map(function (line) {
-        var parts = line.split(/[,\t]/).map(function (p) { return p.trim(); });
-        return rosterRowHtml(parts[0] || "", parts[1] || "", parts[2] || "");
-      })
-      .join("");
-    document.getElementById("roster-rows").insertAdjacentHTML("beforeend", html);
-    document.getElementById("roster-bulk").value = "";
-  });
   document.getElementById("btn-save-roster").addEventListener("click", function () {
     var items = Array.prototype.map
       .call(document.querySelectorAll("#roster-rows tr"), function (tr) {
@@ -384,10 +378,9 @@
         };
       })
       .filter(function (r) { return r.ism || r.familiya; });
+    var btn = document.getElementById("btn-save-roster");
     var msg = document.getElementById("roster-msg");
-    apiPost({ type: "roster", items: items })
-      .then(function () { msg.textContent = "Saqlandi ✓ (" + items.length + " ta)"; msg.className = "form-ok"; })
-      .catch(function () { msg.textContent = "Saqlanmadi — internetni tekshiring."; msg.className = "form-error"; });
+    withSaving(btn, function () { return apiPost({ type: "roster", items: items }); }, msg, "Saqlandi ✓ (" + items.length + " ta)").catch(function () {});
   });
 
   // ================= HAYDOVCHILAR =================
@@ -436,11 +429,227 @@
         };
       })
       .filter(function (d) { return d.raqam || d.haydovchi; });
+    var btn = document.getElementById("btn-save-drivers");
     var msg = document.getElementById("drivers-msg");
-    apiPost({ type: "drivers", items: items })
-      .then(function () { msg.textContent = "Saqlandi ✓"; msg.className = "form-ok"; })
-      .catch(function () { msg.textContent = "Saqlanmadi — internetni tekshiring."; msg.className = "form-error"; });
+    withSaving(btn, function () { return apiPost({ type: "drivers", items: items }); }, msg).catch(function () {});
   });
+
+  // ================= KURATORLAR =================
+  function kuratorRowHtml(sinf, ism, telefon, kirishKodi, boglangan) {
+    var classOptions = (lastClasses.length ? lastClasses.map(function (c) { return c.sinf; }) : []).slice();
+    if (sinf && classOptions.indexOf(sinf) === -1) classOptions.push(sinf);
+    classOptions.sort(compareClasses);
+    var opts = '<option value="">Tanlang</option>' + classOptions.map(function (c) { return '<option value="' + esc(c) + '"' + (c === sinf ? " selected" : "") + ">" + esc(c) + "</option>"; }).join("");
+    var status = kirishKodi
+      ? (boglangan
+          ? '<span style="color:var(--success);font-weight:600;">✓ ulangan</span>'
+          : '<button type="button" class="btn-text kur-link-btn" data-code="' + esc(kirishKodi) + '">havolani ko\'rish</button>')
+      : '<span class="hint" style="margin:0;">saqlangach kod chiqadi</span>';
+    return (
+      '<tr><td><select class="tbl-input kur-sinf">' + opts + "</select></td>" +
+      '<td><input class="tbl-input kur-ism" value="' + esc(ism || "") + '"></td>' +
+      '<td><div class="phone-row"><span class="phone-prefix">+998</span><input class="tbl-input kur-telefon" value="' + esc(localPhoneDigitsFromFull(telefon)) + '" placeholder="90 123 45 67"></div></td>' +
+      '<td>' + status + '</td>' +
+      '<td><button type="button" class="tbl-del">✕</button></td></tr>'
+    );
+  }
+  function wireKuratorPhoneInputs() {
+    document.querySelectorAll("#kurators-rows .kur-telefon").forEach(function (inp) {
+      if (inp._masked) return;
+      inp._masked = true;
+      attachPhoneMask(inp, function () {});
+    });
+    document.querySelectorAll(".kur-link-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var link = (BOT_LINK_CACHE || "https://t.me/SizningBotingiz") + "?start=" + btn.getAttribute("data-code");
+        window.prompt("Kuratorga shu havolani yuboring:", link);
+      });
+    });
+  }
+  var BOT_LINK_CACHE = "";
+  function loadKurators() {
+    Promise.all([apiGet("kurators"), apiGet("classes"), apiGet("settings")]).then(function (res) {
+      lastClasses = res[1] || [];
+      BOT_LINK_CACHE = (res[2] || {}).BotLink || "";
+      var tbody = document.getElementById("kurators-rows");
+      tbody.innerHTML = (res[0] || []).map(function (k) { return kuratorRowHtml(k.sinf, k.ism, k.telefon, k.kirishKodi, k["bogʻlangan"]); }).join("") || kuratorRowHtml("", "", "", "", false);
+      wireKuratorPhoneInputs();
+    });
+  }
+  document.getElementById("btn-add-kurator").addEventListener("click", function () {
+    document.getElementById("kurators-rows").insertAdjacentHTML("beforeend", kuratorRowHtml("", "", "", "", false));
+    wireKuratorPhoneInputs();
+  });
+  document.getElementById("kurators-rows").addEventListener("click", function (ev) {
+    if (ev.target.classList.contains("tbl-del")) ev.target.closest("tr").remove();
+  });
+  document.getElementById("btn-save-kurators").addEventListener("click", function () {
+    var items = Array.prototype.map
+      .call(document.querySelectorAll("#kurators-rows tr"), function (tr) {
+        var digits = tr.querySelector(".kur-telefon").value.trim();
+        return {
+          sinf: tr.querySelector(".kur-sinf").value.trim(),
+          ism: tr.querySelector(".kur-ism").value.trim(),
+          telefon: digits ? fullPhone(digits) : "",
+        };
+      })
+      .filter(function (k) { return k.sinf; });
+    var btn = document.getElementById("btn-save-kurators");
+    var msg = document.getElementById("kurators-msg");
+    withSaving(btn, function () { return apiPost({ type: "kurators", items: items }); }, msg)
+      .then(function () { setTimeout(loadKurators, 400); })
+      .catch(function () {});
+  });
+
+  // ================= SOZLAMALAR =================
+  function overallRowHtml(ism, lavozimi, kirishKodi, boglangan) {
+    var status = kirishKodi
+      ? (boglangan
+          ? '<span style="color:var(--success);font-weight:600;">✓ ulangan</span>'
+          : '<button type="button" class="btn-text ov-link-btn" data-code="' + esc(kirishKodi) + '">havolani ko\'rish</button>')
+      : '<span class="hint" style="margin:0;">saqlangach kod chiqadi</span>';
+    return (
+      '<tr><td><input class="tbl-input ov-ism" value="' + esc(ism || "") + '"></td>' +
+      '<td><input class="tbl-input ov-lavozim" value="' + esc(lavozimi || "") + '" placeholder="Direktor"></td>' +
+      '<td>' + status + '</td>' +
+      '<td><button type="button" class="tbl-del">✕</button></td></tr>'
+    );
+  }
+  function wireOverallLinks() {
+    document.querySelectorAll(".ov-link-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var link = (BOT_LINK_CACHE || "https://t.me/SizningBotingiz") + "?start=" + btn.getAttribute("data-code");
+        window.prompt("Shu odamga quyidagi havolani yuboring:", link);
+      });
+    });
+  }
+  function loadSozlamalar() {
+    Promise.all([apiGet("settings"), apiGet("overall")]).then(function (res) {
+      var settings = res[0] || {};
+      BOT_LINK_CACHE = settings.BotLink || "";
+      document.getElementById("set-botlink").value = BOT_LINK_CACHE;
+      var tbody = document.getElementById("overall-rows");
+      tbody.innerHTML = (res[1] || []).map(function (o) { return overallRowHtml(o.ism, o.lavozimi, o.kirishKodi, o["bogʻlangan"]); }).join("") || overallRowHtml("", "", "", false);
+      wireOverallLinks();
+    });
+  }
+  document.getElementById("btn-save-botlink").addEventListener("click", function () {
+    var link = document.getElementById("set-botlink").value.trim();
+    var btn = document.getElementById("btn-save-botlink");
+    var msg = document.getElementById("botlink-msg");
+    withSaving(btn, function () { return apiPost({ type: "settings", values: { BotLink: link } }); }, msg)
+      .then(function () { BOT_LINK_CACHE = link; })
+      .catch(function () {});
+  });
+  document.getElementById("btn-add-overall").addEventListener("click", function () {
+    document.getElementById("overall-rows").insertAdjacentHTML("beforeend", overallRowHtml("", "", "", false));
+  });
+  document.getElementById("overall-rows").addEventListener("click", function (ev) {
+    if (ev.target.classList.contains("tbl-del")) ev.target.closest("tr").remove();
+  });
+  document.getElementById("btn-save-overall").addEventListener("click", function () {
+    var items = Array.prototype.map
+      .call(document.querySelectorAll("#overall-rows tr"), function (tr) {
+        return { ism: tr.querySelector(".ov-ism").value.trim(), lavozimi: tr.querySelector(".ov-lavozim").value.trim() };
+      })
+      .filter(function (o) { return o.ism; });
+    var btn = document.getElementById("btn-save-overall");
+    var msg = document.getElementById("overall-msg");
+    withSaving(btn, function () { return apiPost({ type: "overall", items: items }); }, msg)
+      .then(function () { setTimeout(loadSozlamalar, 400); })
+      .catch(function () {});
+  });
+
+  // Maktab rahbariyati uchun umumiy statistika PDF: sinflar bo'yicha
+  // jamlanma jadval + to'liq o'quvchilar ro'yxati (autoTable bilan tartibli
+  // jadval, oldingi qo'lda joylashtirilgan matn o'rniga). Telefon/manzil
+  // ustunlari ixtiyoriy checkbox orqali qo'shiladi/olib tashlanadi.
+  function exportOrgStatsPdf() {
+    if (typeof window.jspdf === "undefined") {
+      alert("PDF kutubxonasi yuklanmadi — internetni tekshirib qayta urinib ko'ring.");
+      return;
+    }
+    var jsPDF = window.jspdf.jsPDF;
+    var doc = new jsPDF();
+    var phoneCb = document.getElementById("org-pdf-phone");
+    var locCb = document.getElementById("org-pdf-loc");
+    var includePhone = !!(phoneCb && phoneCb.checked);
+    var includeLoc = !!(locCb && locCb.checked);
+
+    Promise.all([apiGet("entries"), apiGet("classes")]).then(function (res) {
+      var entries = res[0] || [];
+      var classes = res[1] || [];
+      var counts = {};
+      entries.forEach(function (e) { counts[e.sinf] = (counts[e.sinf] || 0) + 1; });
+      var classKeys = classes.length ? classes.map(function (c) { return c.sinf; }) : Object.keys(counts);
+      classKeys.sort(compareClasses);
+
+      var totalJami = 0, totalBusU = 0, totalGot = 0;
+      var classRows = classKeys.map(function (sinf) {
+        var cls = classes.filter(function (c) { return c.sinf === sinf; })[0] || {};
+        var jami = cls.jami != null ? Number(cls.jami) : null;
+        var busU = cls.busFoydalanuvchi != null ? Number(cls.busFoydalanuvchi) : null;
+        var got = counts[sinf] || 0;
+        if (jami) totalJami += jami;
+        if (busU) totalBusU += busU;
+        totalGot += got;
+        var pct = busU ? Math.round((got / busU) * 100) + "%" : "—";
+        return [sinf, jami != null ? jami : "—", busU != null ? busU : "—", got, pct];
+      });
+
+      doc.setFontSize(18);
+      doc.text("Bekat — umumiy statistika hisoboti", 14, 16);
+      doc.setFontSize(10);
+      doc.text("Sana: " + new Date().toLocaleDateString("uz-UZ"), 14, 23);
+
+      doc.setFontSize(12);
+      var overallPct = totalJami ? " (" + Math.round((totalBusU / totalJami) * 100) + "%)" : "";
+      doc.text(
+        "Jami o'quvchilar: " + (totalJami || "—") + "   Avtobusdan foydalanadigan: " + (totalBusU || "—") + overallPct + "   Ro'yxatdan o'tgan: " + totalGot,
+        14, 32
+      );
+
+      doc.autoTable({
+        startY: 38,
+        head: [["Sinf", "Jami", "Avtobusdan foyd.", "Ro'yxatdan o'tgan", "%"]],
+        body: classRows,
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [31, 58, 95] },
+      });
+
+      var y = doc.lastAutoTable.finalY + 10;
+      if (y > 260) { doc.addPage(); y = 20; }
+      doc.setFontSize(14);
+      doc.text("O'quvchilar bo'yicha to'liq ma'lumot", 14, y);
+
+      var head = ["#", "Ism", "Familiya", "Sinf"];
+      if (includePhone) head.push("Telefon");
+      if (includeLoc) head.push("Manzil");
+      var sorted = entries.slice().sort(function (a, b) {
+        var c = compareClasses(a.sinf, b.sinf);
+        if (c !== 0) return c;
+        return String(a.familiya || "").localeCompare(String(b.familiya || ""));
+      });
+      var body = sorted.map(function (e, i) {
+        var row = [i + 1, e.ism, e.familiya, e.sinf];
+        if (includePhone) row.push(e.telefon || "—");
+        if (includeLoc) row.push(e.lat != null ? mapsLinkFor(e.lat, e.lng) : "—");
+        return row;
+      });
+
+      doc.autoTable({
+        startY: y + 4,
+        head: [head],
+        body: body,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [31, 58, 95] },
+      });
+
+      doc.save("bekat-umumiy-statistika.pdf");
+    });
+  }
+
+  document.getElementById("btn-org-pdf").addEventListener("click", exportOrgStatsPdf);
 
   // ================= YO'NALISHLAR =================
   var currentSchool = null;
@@ -522,6 +731,110 @@
     );
   });
 
+  // ---- Bekatni qo'lda belgilash ----
+  // Avtomatik klasterlashda chalkashlik bo'lganda, admin xaritadan bir
+  // nuqta bosib "bekat" yaratadi, so'ng shu bekatdan chiqadigan
+  // o'quvchilarni ro'yxatdan tanlaydi — ularning bekatLat/bekatLng maydoni
+  // shu nuqtaga o'rnatiladi (Royxat jadvalining boshqa hech qanday maydoni
+  // o'zgarmaydi — faqat shu ikki ustun yangilanadi).
+  var manualBekatMap = null;
+  var manualBekatMarker = null;
+  var manualBekatPoint = null;
+  var manualBekatEntries = [];
+
+  function refreshManualBekatEntries() {
+    apiGet("entries").then(function (entries) {
+      manualBekatEntries = entries || [];
+      if (!document.getElementById("manual-bekat-picker").hidden) renderManualBekatList();
+    });
+  }
+
+  function initManualBekatMapIfNeeded() {
+    if (manualBekatMap || typeof L === "undefined") return;
+    var center = currentSchool || MAP_DEFAULT_CENTER;
+    manualBekatMap = L.map("map-manual-bekat").setView([center.lat, center.lng], 13);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap" }).addTo(manualBekatMap);
+    manualBekatMap.on("click", function (e) {
+      setManualBekatPoint(e.latlng.lat, e.latlng.lng);
+    });
+  }
+
+  function setManualBekatPoint(lat, lng) {
+    manualBekatPoint = { lat: lat, lng: lng };
+    if (!manualBekatMarker) {
+      manualBekatMarker = L.marker([lat, lng], { draggable: true }).addTo(manualBekatMap);
+      manualBekatMarker.on("dragend", function () {
+        var ll = manualBekatMarker.getLatLng();
+        manualBekatPoint = { lat: ll.lat, lng: ll.lng };
+        updateManualBekatCoordText();
+      });
+    } else {
+      manualBekatMarker.setLatLng([lat, lng]);
+    }
+    document.getElementById("manual-bekat-picker").hidden = false;
+    updateManualBekatCoordText();
+    renderManualBekatList();
+  }
+
+  function updateManualBekatCoordText() {
+    document.getElementById("manual-bekat-coord").textContent = manualBekatPoint.lat.toFixed(6) + ", " + manualBekatPoint.lng.toFixed(6);
+  }
+
+  function renderManualBekatList() {
+    var list = document.getElementById("manual-bekat-list");
+    var checkedIds = {};
+    Array.prototype.forEach.call(document.querySelectorAll(".mb-student-cb:checked"), function (cb) { checkedIds[cb.value] = true; });
+    var q = (document.getElementById("manual-bekat-search").value || "").trim().toLowerCase();
+    var sorted = manualBekatEntries.slice().sort(function (a, b) {
+      var c = compareClasses(a.sinf, b.sinf);
+      if (c !== 0) return c;
+      return String(a.familiya || "").localeCompare(String(b.familiya || ""));
+    });
+    var filtered = sorted.filter(function (e) {
+      if (!q) return true;
+      return (e.ism + " " + e.familiya + " " + e.sinf).toLowerCase().indexOf(q) !== -1;
+    });
+    if (!filtered.length) {
+      list.innerHTML = '<p class="hint" style="margin:0;">Hech kim topilmadi.</p>';
+      return;
+    }
+    list.innerHTML = filtered
+      .map(function (e) {
+        var checked = checkedIds[e.id] ? " checked" : "";
+        return (
+          '<label style="display:flex;align-items:center;gap:8px;font-weight:400;margin:0 0 6px;width:auto;">' +
+          '<input type="checkbox" class="mb-student-cb" value="' + esc(e.id) + '"' + checked + ' style="width:auto;"> ' +
+          esc(e.ism) + " " + esc(e.familiya) + ' <span class="hint" style="margin:0;">(' + esc(e.sinf) + ")</span></label>"
+        );
+      })
+      .join("");
+  }
+  document.getElementById("manual-bekat-search").addEventListener("input", renderManualBekatList);
+
+  document.getElementById("btn-manual-bekat-save").addEventListener("click", function () {
+    var btn = this;
+    var msg = document.getElementById("manual-bekat-msg");
+    if (!manualBekatPoint) return;
+    var ids = Array.prototype.map.call(document.querySelectorAll(".mb-student-cb:checked"), function (cb) { return cb.value; });
+    if (!ids.length) {
+      msg.textContent = "Kamida bitta o'quvchi tanlang.";
+      msg.className = "form-error";
+      return;
+    }
+    withSaving(
+      btn,
+      function () {
+        return Promise.all(ids.map(function (id) { return apiUpdateEntry(id, { bekatLat: manualBekatPoint.lat, bekatLng: manualBekatPoint.lng }); }));
+      },
+      msg,
+      "Bekat saqlandi ✓ (" + ids.length + " ta o'quvchi) — keyingi hisoblashda hisobga olinadi"
+    )
+      .then(function () {
+        Array.prototype.forEach.call(document.querySelectorAll(".mb-student-cb:checked"), function (cb) { cb.checked = false; });
+      })
+      .catch(function () {});
+  });
+
   // ---- Hisoblash ----
   document.getElementById("btn-compute").addEventListener("click", function () {
     var msg = document.getElementById("route-msg");
@@ -533,10 +846,13 @@
       msg.className = "form-error";
       return;
     }
+    var direction = (document.querySelector('input[name="rt-direction"]:checked') || {}).value || "kelish";
     var busCount = parseInt(document.getElementById("rt-buscount").value, 10) || 0;
     var maxWalkM = parseInt(document.getElementById("rt-maxwalk").value, 10) || DEFAULT_MAX_WALK_M;
     var walkRadiusM = parseInt(document.getElementById("rt-walkradius").value, 10) || 0;
     var selectedDay = document.getElementById("rt-day").value;
+    var departureFromSchool = document.getElementById("rt-ketish-vaqti").value.trim() || "14:00";
+    var kmCapPerBus = parseFloat(document.getElementById("rt-kmcap").value) || 0;
     if (busCount < 1) {
       msg.textContent = "Avtobuslar sonini kiriting.";
       msg.className = "form-error";
@@ -552,11 +868,12 @@
       var capacities = [];
       for (var i = 0; i < busCount; i++) capacities.push(drivers[i] && drivers[i].sigim ? drivers[i].sigim : DEFAULT_BUS_CAPACITY);
 
-      // Yotoqxona jadvali: kundalik o'quvchilar doim hisobga olinadi,
-      // yotoqxonadagilar faqat o'ziga belgilangan kunlarda.
+      // Har bir o'quvchi shu kunda, shu yo'nalishda (kelish yoki ketish —
+      // Ro'yxat bo'limida ✎ orqali alohida belgilanadi) avtobusdan
+      // foydalanadimi. Oddiy kundalik o'quvchida ikkalasi ham "har kuni".
+      var dayField = direction === "ketish" ? "ketishKunlari" : "kelishKunlari";
       var entries = allEntries.filter(function (e) {
-        if (e.turarJoy !== "yotoqxona") return true;
-        return (e.kunlar || []).indexOf(selectedDay) !== -1;
+        return (e[dayField] || []).indexOf(selectedDay) !== -1;
       });
 
       // Override qiymati doim "1".."N" (joriy hisoblashdagi avtobus tartib
@@ -572,6 +889,9 @@
         arrivalHHMM: ARRIVAL_TIME,
         schoolWalkRadiusM: walkRadiusM,
         resolveOverrideIndex: resolveOverrideIndex,
+        direction: direction,
+        departureFromSchool: departureFromSchool,
+        kmCapPerBus: kmCapPerBus,
       }).then(function (result) {
         lastRouteResult = result;
         msg.textContent = "";
@@ -649,12 +969,40 @@
     renderBusSummaries(result, drivers);
   }
 
-  function startIcon(color) {
+  // "Qulflash" — hozir tayinlangan har bir bolaning avtobusOverride'ini
+  // joriy avtobus tartib raqamiga o'rnatadi. Shu bekatlar keyingi
+  // hisoblashlarda ham "forcedBusIndex" orqali o'sha avtobusga mahkam
+  // qoladi (routing.js'dagi mavjud mexanizm) — shuning uchun 1-2 ta yangi
+  // o'quvchi qo'shilsa ham, avvalgi qo'lda to'g'irlangan taqsimot buzilmaydi.
+  document.getElementById("btn-lock-assignment").addEventListener("click", function () {
+    if (!lastRouteResult) return;
+    var btn = this;
+    var updates = [];
+    lastRouteResult.buses.forEach(function (bus, i) {
+      (bus.order || []).forEach(function (s) {
+        s.students.forEach(function (st) { updates.push({ id: st.id, busIndex: i + 1 }); });
+      });
+    });
+    if (!updates.length) { showToast("Qulflash uchun taqsimot topilmadi — avval hisoblang."); return; }
+    if (!window.confirm(updates.length + " ta o'quvchi hozirgi avtobusiga mahkamlansinmi? Keyingi hisoblashlarda ular shu avtobusda qoladi, faqat yangi o'quvchilar bo'sh joyga taqsimlanadi.")) return;
+    withSaving(
+      btn,
+      function () { return Promise.all(updates.map(function (u) { return apiUpdateEntry(u.id, { avtobusOverride: String(u.busIndex) }); })); },
+      null,
+      "Taqsimot qulflandi ✓ (" + updates.length + " ta o'quvchi)"
+    ).catch(function () { alert("Qulflashda xatolik, qayta urinib ko'ring."); });
+  });
+
+  function startIcon(color, number) {
     return L.divIcon({
       className: "",
-      html: '<div style="font-size:22px;line-height:1;filter:drop-shadow(0 2px 2px rgba(0,0,0,.35));transform:translate(-4px,-6px);">🚩</div>',
-      iconSize: [24, 24],
-      iconAnchor: [4, 24],
+      html:
+        '<div style="position:relative;">' +
+        '<div style="font-size:24px;line-height:1;filter:drop-shadow(0 2px 2px rgba(0,0,0,.35));">🚩</div>' +
+        '<div style="position:absolute;top:-5px;left:17px;background:' + color + ';color:#fff;font-size:10px;font-weight:700;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;border:1.5px solid #fff;">' + number + "</div>" +
+        "</div>",
+      iconSize: [30, 30],
+      iconAnchor: [8, 26],
     });
   }
 
@@ -666,7 +1014,16 @@
       .catch(function () {});
   }
 
+  // GOOGLE_MAPS_API_KEY bo'sh bo'lsa (standart holat), hech narsa
+  // o'zgarmaydi — pastdagi eski, sinovdan o'tgan Leaflet/OpenStreetMap yo'li
+  // ishlatiladi. Kalit kiritilgan bo'lsagina Google xaritasiga o'tiladi.
   function drawRouteMap(result, drivers, focusIndex) {
+    if (useGoogleMaps()) drawRouteMapGoogle(result, drivers, focusIndex);
+    else drawRouteMapLeaflet(result, drivers, focusIndex);
+    renderStreetNames(result, drivers, focusIndex);
+  }
+
+  function drawRouteMapLeaflet(result, drivers, focusIndex) {
     if (typeof L === "undefined") {
       document.getElementById("map-routes").textContent = "Xarita yuklanmadi (internet aloqasini tekshiring).";
       return;
@@ -706,15 +1063,18 @@
         var label = (idx === 0 ? "🚩 Boshlash nuqtasi — " : "") + "<b>Bekat " + (idx + 1) + "</b><br>" + names;
         var marker;
         if (idx === 0) {
-          marker = L.marker([s.lat, s.lng], { icon: startIcon(color), draggable: true }).bindPopup(label);
+          marker = L.marker([s.lat, s.lng], { icon: startIcon(color, idx + 1), draggable: true }).bindPopup(label);
         } else {
           marker = L.marker([s.lat, s.lng], {
             draggable: true,
             icon: L.divIcon({
               className: "",
-              html: '<div style="width:16px;height:16px;border-radius:50%;background:' + color + ';border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4);"></div>',
-              iconSize: [16, 16],
-              iconAnchor: [8, 8],
+              html:
+                '<div style="width:22px;height:22px;border-radius:50%;background:' + color + ';border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;">' +
+                (idx + 1) +
+                "</div>",
+              iconSize: [22, 22],
+              iconAnchor: [11, 11],
             }),
           }).bindPopup(label);
         }
@@ -735,6 +1095,160 @@
     }
   }
 
+  // ---- Google Maps versiyasi (faqat GOOGLE_MAPS_API_KEY kiritilganda) ----
+  // Diqqat: PDF eksport xaritani rasmga olish uchun html2canvas ishlatadi —
+  // Google xaritasining ba'zi holatlarida (ayniqsa vektor render rejimida)
+  // bu screenshot bo'sh chiqishi mumkin (ma'lum texnik cheklov, bu yerda
+  // internet yo'qligi sabab sinab ko'rib bo'lmadi). Xavotir olmang: agar
+  // shunday bo'lsa, PDF baribir jadval qismi bilan (xaritasiz) chiqadi —
+  // exportBusPdf/btn-pdf-all'dagi mavjud "catch" zaxira yo'li shuni
+  // ta'minlaydi, hech qanday ma'lumot yo'qolmaydi.
+  var gMap = null;
+  var gMapOverlays = [];
+  var gMapInfoWindow = null;
+  var gMapLayers = null; // { traffic, transit, bicycling }
+
+  function gIcon(svgInner, w, h, anchorX, anchorY) {
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '">' + svgInner + "</svg>";
+    return {
+      url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg),
+      anchor: new google.maps.Point(anchorX, anchorY),
+    };
+  }
+
+  function addGMapLayerToggle(gmaps) {
+    if (document.getElementById("gmap-layer-toggle")) return;
+    var box = document.createElement("div");
+    box.id = "gmap-layer-toggle";
+    box.style.cssText = "background:#fff;padding:8px 12px;margin:10px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.3);font:13px sans-serif;";
+    box.innerHTML =
+      '<label style="display:block;font-weight:400;margin:0 0 4px;"><input type="checkbox" id="gmap-cb-traffic" style="width:auto;"> Traffic (tirbandlik)</label>' +
+      '<label style="display:block;font-weight:400;margin:0 0 4px;"><input type="checkbox" id="gmap-cb-transit" style="width:auto;"> Transit</label>' +
+      '<label style="display:block;font-weight:400;margin:0;"><input type="checkbox" id="gmap-cb-bicycling" style="width:auto;"> Bicycling</label>';
+    gMap.controls[gmaps.ControlPosition.TOP_LEFT].push(box);
+    gMapLayers = { traffic: new gmaps.TrafficLayer(), transit: new gmaps.TransitLayer(), bicycling: new gmaps.BicyclingLayer() };
+    document.getElementById("gmap-cb-traffic").addEventListener("change", function (e) { gMapLayers.traffic.setMap(e.target.checked ? gMap : null); });
+    document.getElementById("gmap-cb-transit").addEventListener("change", function (e) { gMapLayers.transit.setMap(e.target.checked ? gMap : null); });
+    document.getElementById("gmap-cb-bicycling").addEventListener("change", function (e) { gMapLayers.bicycling.setMap(e.target.checked ? gMap : null); });
+  }
+
+  function drawRouteMapGoogle(result, drivers, focusIndex) {
+    loadGoogleMaps()
+      .then(function (gmaps) {
+        if (!gMap) {
+          gMap = new gmaps.Map(document.getElementById("map-routes"), {
+            center: { lat: currentSchool.lat, lng: currentSchool.lng },
+            zoom: 12,
+            mapTypeControl: true,
+            mapTypeControlOptions: { mapTypeIds: ["roadmap", "satellite", "hybrid", "terrain"] },
+            streetViewControl: true,
+            fullscreenControl: true,
+          });
+          gMapInfoWindow = new gmaps.InfoWindow();
+          addGMapLayerToggle(gmaps);
+        }
+        gMapOverlays.forEach(function (o) { o.setMap(null); });
+        gMapOverlays = [];
+
+        var bounds = new gmaps.LatLngBounds();
+
+        var schoolMarker = new gmaps.Marker({
+          position: { lat: currentSchool.lat, lng: currentSchool.lng },
+          map: gMap,
+          title: "Maktab",
+          icon: gIcon('<text x="15" y="23" font-size="24" text-anchor="middle">🏫</text>', 30, 30, 15, 24),
+        });
+        gMapOverlays.push(schoolMarker);
+        bounds.extend(schoolMarker.getPosition());
+
+        result.buses.forEach(function (bus, i) {
+          if (focusIndex != null && focusIndex !== i) return;
+          if (!bus.route) return;
+          var color = busColor(i, drivers);
+
+          var path = (bus.route.latlngs || []).map(function (ll) { return { lat: ll[0], lng: ll[1] }; });
+          if (path.length) {
+            var polyline = new gmaps.Polyline({ path: path, strokeColor: color, strokeWeight: 4, strokeOpacity: 0.85, map: gMap });
+            gMapOverlays.push(polyline);
+            path.forEach(function (p) { bounds.extend(p); });
+          }
+
+          bus.order.forEach(function (s) {
+            s.students.forEach(function (st) {
+              if (st.lat == null) return;
+              var m = new gmaps.Marker({
+                position: { lat: st.lat, lng: st.lng },
+                map: gMap,
+                icon: { path: gmaps.SymbolPath.CIRCLE, scale: 5, fillColor: "#fff", fillOpacity: 0.9, strokeColor: color, strokeWeight: 2 },
+              });
+              m.addListener("click", function () {
+                gMapInfoWindow.setContent("<b>" + esc(st.ism) + " " + esc(st.familiya) + "</b><br>" + esc(st.sinf) + (st.telefon ? "<br>" + esc(st.telefon) : ""));
+                gMapInfoWindow.open(gMap, m);
+              });
+              gMapOverlays.push(m);
+            });
+          });
+
+          bus.order.forEach(function (s, idx) {
+            var names = s.students.map(function (st) { return esc(st.ism + " " + st.familiya); }).join("<br>");
+            var label = (idx === 0 ? "🚩 Boshlash nuqtasi — " : "") + "<b>Bekat " + (idx + 1) + "</b><br>" + names;
+            var icon =
+              idx === 0
+                ? gIcon(
+                    '<text x="4" y="24" font-size="24">🚩</text><circle cx="25" cy="9" r="9" fill="' + color + '" stroke="#fff" stroke-width="1.5"/><text x="25" y="13" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">' + (idx + 1) + "</text>",
+                    34, 34, 6, 26
+                  )
+                : gIcon(
+                    '<circle cx="11" cy="11" r="10" fill="' + color + '" stroke="#fff" stroke-width="2"/><text x="11" y="15" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">' + (idx + 1) + "</text>",
+                    22, 22, 11, 11
+                  );
+            var marker = new gmaps.Marker({ position: { lat: s.lat, lng: s.lng }, map: gMap, draggable: true, icon: icon });
+            marker.addListener("click", function () {
+              gMapInfoWindow.setContent(label);
+              gMapInfoWindow.open(gMap, marker);
+            });
+            marker.addListener("dragend", function () {
+              var pos = marker.getPosition();
+              persistStopMove(s, pos.lat(), pos.lng());
+            });
+            gMapOverlays.push(marker);
+            bounds.extend(marker.getPosition());
+          });
+        });
+
+        try {
+          if (!bounds.isEmpty()) gMap.fitBounds(bounds, 50);
+          else gMap.setCenter({ lat: currentSchool.lat, lng: currentSchool.lng });
+        } catch (e) {}
+      })
+      .catch(function () {
+        document.getElementById("map-routes").textContent =
+          "Google xaritasi yuklanmadi (kalitni yoki internetni tekshiring). Vaqtincha bepul xaritaga qaytarish uchun config.js dagi GOOGLE_MAPS_API_KEY ni bo'sh qoldiring.";
+      });
+  }
+
+  // Har bir avtobus qaysi ko'chalardan o'tishini (OSRM'dan olingan) matn
+  // shaklida ko'rsatadi — tanlangan avtobus bo'yicha yoki hammasi bo'yicha.
+  function renderStreetNames(result, drivers, focusIndex) {
+    var el = document.getElementById("street-names");
+    if (!el) return;
+    var idxList = focusIndex != null ? [focusIndex] : result.buses.map(function (_, i) { return i; });
+    var html = idxList
+      .map(function (i) {
+        var bus = result.buses[i];
+        if (!bus || !bus.route) return "";
+        var names = bus.route.streetNames || [];
+        var namesText = names.length ? names.join(" → ") : "Ko'cha nomlari mavjud emas (OSRM'ga ulanib bo'lmadi, taxminiy hisob ishlatildi).";
+        var capWarn = bus.overKmCap ? ' <span style="color:var(--danger);font-weight:600;">⚠ km chegarasidan oshdi</span>' : "";
+        return (
+          '<p class="hint" style="margin:4px 0;"><b>Avtobus ' + (i + 1) + " o'tadigan ko'chalar:</b>" + capWarn + "<br>" + esc(namesText) + "</p>"
+        );
+      })
+      .filter(Boolean)
+      .join("");
+    el.innerHTML = html;
+  }
+
   function renderBusSummaries(result, drivers) {
     var html = result.buses
       .map(function (bus, i) {
@@ -746,6 +1260,7 @@
         var km = bus.route.distanceKm.toFixed(1);
         var min = Math.round(bus.route.durationMin);
         var approxNote = bus.route.real ? "" : ' <span title="OSRM xizmatiga ulanib bo\'lmadi, taxminiy hisob">(taxminiy)</span>';
+        var capNote = bus.overKmCap ? ' <span style="color:var(--danger);font-weight:600;">⚠ km chegarasidan oshdi</span>' : "";
         var chips = bus.order
           .map(function (s, idx) {
             var t = bus.stopTimes && bus.stopTimes[idx] ? bus.stopTimes[idx] : null;
@@ -760,7 +1275,7 @@
           '<div class="bus-card" id="bus-card-' + i + '">' +
             '<div class="bus-card-head"><span class="bus-swatch" style="background:' + busColor(i, drivers) + '"></span>' +
             "<b>Avtobus " + (i + 1) + "</b>" +
-            '<span class="bus-meta">' + km + " km · " + min + " daqiqa" + approxNote + " · " + bus.count + " bola · chiqish ~" + bus.departure + "</span></div>" +
+            '<span class="bus-meta">' + km + " km · " + min + " daqiqa" + approxNote + " · " + bus.count + " bola · chiqish ~" + bus.departure + "</span>" + capNote + "</div>" +
             '<p class="hint" style="margin:8px 0 0;">' + driverInfo + '<button type="button" class="btn-text bus-pdf-btn" data-idx="' + i + '" style="margin-left:10px;">📄 PDF</button></p>' +
             '<div class="bus-students">' + chips + "</div>" +
           "</div>"
@@ -817,35 +1332,42 @@
     doc.text("Avtobus " + (busIndex + 1) + (d.raqam ? " (No " + d.raqam + ")" : ""), 14, y);
     y += 8;
     doc.setFontSize(10);
-    doc.text("Haydovchi: " + (d.haydovchi || "-") + "   Tel: " + (d.telefon || "-") + "   Rang: " + (d.rang || "-") + "   Sig'im: " + (d.sigim || "-"), 14, y);
+    doc.text("Haydovchi: " + (d.haydovchi || "-") + "   Tel: " + (d.telefon || "-") + "   Sig'im: " + (d.sigim || "-"), 14, y);
     y += 6;
     if (bus && bus.route) {
       doc.text(
-        bus.route.distanceKm.toFixed(1) + " km, " + Math.round(bus.route.durationMin) + " daqiqa, " + bus.count + " bola, chiqish ~" + bus.departure + ", maktabga yetib borish ~" + ARRIVAL_TIME,
+        bus.route.distanceKm.toFixed(1) + " km, " + Math.round(bus.route.durationMin) + " daqiqa, " + bus.count + " bola, chiqish ~" + bus.departure +
+          (bus.direction === "ketish" ? "" : ", maktabga yetib borish ~" + ARRIVAL_TIME) +
+          (bus.overKmCap ? "   ⚠ km chegarasidan oshdi" : ""),
         14, y
       );
-      y += 8;
+      y += 6;
+      if (bus.route.streetNames && bus.route.streetNames.length) {
+        var wrapped = doc.splitTextToSize("Ko'chalar: " + bus.route.streetNames.join(" -> "), 182);
+        doc.setFontSize(9);
+        doc.text(wrapped, 14, y);
+        y += wrapped.length * 4.5 + 3;
+        doc.setFontSize(10);
+      }
     }
-    doc.setFontSize(10);
-    doc.text("#  Ism Familiya            Sinf     Telefon           Vaqt", 14, y);
-    y += 5;
-    doc.setDrawColor(200);
-    doc.line(14, y, 196, y);
-    y += 5;
+    var body = [];
     if (bus) {
       bus.order.forEach(function (s, idx) {
         var t = bus.stopTimes && bus.stopTimes[idx] ? bus.stopTimes[idx] : "-";
         s.students.forEach(function (st) {
-          if (y > 280) { doc.addPage(); y = 20; }
-          doc.text(
-            String(idx + 1).padEnd(3) + (st.ism + " " + st.familiya).slice(0, 22).padEnd(24) + String(st.sinf || "-").padEnd(9) + String(st.telefon || "-").padEnd(18) + "~" + t,
-            14, y
-          );
-          y += 5.5;
+          body.push([idx + 1, st.ism + " " + st.familiya, st.sinf || "-", st.telefon || "-", "~" + t]);
         });
       });
     }
-    return y + 6;
+    doc.autoTable({
+      startY: y + 2,
+      head: [["Bekat", "Ism Familiya", "Sinf", "Telefon", "Vaqt"]],
+      body: body,
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [31, 58, 95] },
+      margin: { left: 14, right: 14 },
+    });
+    return doc.lastAutoTable.finalY + 8;
   }
 
   function exportBusPdf(busIndex, drivers, isAll) {

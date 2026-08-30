@@ -33,7 +33,9 @@
     <button type="button" class="tab-btn" data-tab="sinflar">Sinflar</button>
     <button type="button" class="tab-btn" data-tab="roster">O'quvchilar ro'yxati</button>
     <button type="button" class="tab-btn" data-tab="haydovchilar">Haydovchilar</button>
+    <button type="button" class="tab-btn" data-tab="kuratorlar">Kuratorlar</button>
     <button type="button" class="tab-btn" data-tab="yonalishlar">Yo'nalishlar</button>
+    <button type="button" class="tab-btn" data-tab="sozlamalar">Sozlamalar</button>
   </div>
 
   <!-- ===================== RO'YXAT ===================== -->
@@ -98,12 +100,7 @@
     <div class="card">
       <h2>O'quvchilar ro'yxati</h2>
       <p class="hint">Bu yerga kiritilgan ism-familiyalar ro'yxatdan o'tish formasida taklif (autocomplete) sifatida chiqadi.</p>
-      <label>Tez qo'shish (bir qatorda: Sinf, Ism, Familiya)</label>
-      <textarea id="roster-bulk" rows="4" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-ctrl);background:var(--surface);color:var(--ink);font:inherit;font-size:13.5px;" placeholder="5-A, Vali, Aliyev&#10;5-A, Olim, Karimov"></textarea>
-      <div class="row2" style="margin-top:8px;">
-        <button type="button" class="btn-ghost" id="btn-bulk-add">Ro'yxatga qo'shish</button>
-      </div>
-      <label style="margin-top:22px;">To'liq ro'yxat</label>
+      <label>To'liq ro'yxat</label>
       <div class="table-wrap">
         <table>
           <thead><tr><th>Sinf</th><th>Ism</th><th>Familiya</th><th></th></tr></thead>
@@ -137,6 +134,26 @@
     </div>
   </div>
 
+  <!-- ===================== KURATORLAR ===================== -->
+  <div class="tab-panel" id="tab-kuratorlar" hidden>
+    <div class="card">
+      <h2>Sinf kuratorlari</h2>
+      <p class="hint">Har bir sinfga bitta ustoz (kurator) biriktiring. Kurator Telegram botga ulangach, faqat o'ziga biriktirilgan sinf ma'lumotini va hisobotini ko'radi. Bu qatorni o'chirsangiz, o'sha kuratorga hisobot yuborilishi darhol to'xtaydi.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Sinf</th><th>Ustoz ismi</th><th>Telefon</th><th>Bot holati</th><th></th></tr></thead>
+          <tbody id="kurators-rows"></tbody>
+        </table>
+      </div>
+      <div class="row2" style="margin-top:14px;">
+        <button type="button" class="btn-ghost" id="btn-add-kurator">+ Kurator qo'shish</button>
+        <button type="button" class="btn-primary" id="btn-save-kurators" style="margin-top:0;">Saqlash</button>
+      </div>
+      <div class="form-error" id="kurators-msg"></div>
+      <p class="hint" style="margin-top:16px;">Botga ulanish uchun: saqlangach paydo bo'lgan havolani (yoki kodni) kuratorga yuboring — u shu havolani ochib, botda "Start" bosishi kifoya.</p>
+    </div>
+  </div>
+
   <!-- ===================== YO'NALISHLAR ===================== -->
   <div class="tab-panel" id="tab-yonalishlar" hidden>
     <div class="card">
@@ -154,6 +171,10 @@
 
     <div class="card">
       <h2>Yo'nalishlarni hisoblash</h2>
+      <div class="row2">
+        <label style="display:flex;align-items:center;gap:6px;font-weight:400;margin:0;flex:none;width:auto;"><input type="radio" name="rt-direction" value="kelish" checked style="width:auto;"> Kelish (ertalab, maktabga)</label>
+        <label style="display:flex;align-items:center;gap:6px;font-weight:400;margin:0;flex:none;width:auto;"><input type="radio" name="rt-direction" value="ketish" style="width:auto;"> Ketish (maktabdan uyga)</label>
+      </div>
       <div class="row2">
         <div>
           <label for="rt-buscount">Avtobuslar soni</label>
@@ -174,9 +195,34 @@
           <select id="rt-day"></select>
         </div>
       </div>
-      <p class="hint" style="margin:2px 0 0;">Piyoda radiusi 0 bo'lsa, bu tekshiruv o'chiriladi. "Kun" — yotoqxonada yashovchi o'quvchilar faqat o'ziga belgilangan kunlarda avtobusga qo'shiladi (O'quvchi tahrirlash orqali belgilanadi), kundalik o'quvchilar har doim hisobga olinadi.</p>
+      <div class="row2">
+        <div id="rt-ketish-vaqti-wrap" hidden>
+          <label for="rt-ketish-vaqti">Maktabdan chiqish vaqti (ketishda)</label>
+          <input type="text" id="rt-ketish-vaqti" value="14:00" placeholder="14:00">
+        </div>
+        <div>
+          <label for="rt-kmcap">Avtobus uchun maksimal km (ixtiyoriy)</label>
+          <input type="text" inputmode="numeric" id="rt-kmcap" value="0" placeholder="0 = cheklovsiz">
+        </div>
+      </div>
+      <p class="hint" style="margin:2px 0 0;">Har bir o'quvchining qaysi kunlari avtobusdan foydalanishi (kelish/ketish alohida) Ro'yxat bo'limida ✎ orqali belgilanadi — kundalik o'quvchilar uchun standart holat "har kuni, ikkala tomon ham". Km chegarasi qat'iy emas — undan oshgan avtobus ogohlantirish bilan ko'rsatiladi (bepul yo'nalish xizmati yo'l turini tanlashga imkon bermaydi).</p>
       <button type="button" class="btn-primary" id="btn-compute" style="margin-top:18px;">Yo'nalishlarni hisoblash</button>
       <div class="form-error" id="route-msg"></div>
+    </div>
+
+    <div class="card">
+      <div class="toolbar">
+        <h2 style="margin:0;">Bekatni qo'lda belgilash</h2>
+      </div>
+      <p class="hint">Avtomatik klasterlashda chalkashlik bo'lsa, shu yerda xaritadan aniq nuqta bosib yangi bekat yarating, so'ng qaysi o'quvchilar shu bekatdan chiqishini tanlang — ularning joylashuvi shu nuqtaga o'rnatiladi.</p>
+      <div id="map-manual-bekat"></div>
+      <div id="manual-bekat-picker" style="margin-top:12px;" hidden>
+        <p class="hint" style="margin:0 0 8px;">Tanlangan nuqta: <span id="manual-bekat-coord"></span></p>
+        <input type="text" id="manual-bekat-search" placeholder="O'quvchi ism-familiyasini qidirish…" style="margin-bottom:8px;">
+        <div id="manual-bekat-list" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:9px;padding:8px;"></div>
+        <button type="button" class="btn-primary" id="btn-manual-bekat-save" style="margin-top:10px;">Tanlanganlarni shu bekatga biriktirish</button>
+        <div class="form-error" id="manual-bekat-msg"></div>
+      </div>
     </div>
 
     <div class="card" id="walkers-card" hidden>
@@ -194,14 +240,55 @@
     <div class="card" id="route-results" hidden>
       <div class="toolbar">
         <h2 style="margin:0;">Natija</h2>
-        <div class="row2" style="flex:none;">
+        <div class="row2" style="flex:none;flex-wrap:wrap;">
           <select id="route-view-select" style="width:auto;padding:8px 10px;"></select>
+          <button type="button" class="btn-ghost" id="btn-lock-assignment">🔒 Ushbu taqsimotni qulflash</button>
           <button type="button" class="btn-ghost" id="btn-pdf-all">📄 Hammasi PDF</button>
         </div>
       </div>
+      <p class="hint" style="margin-top:0;">Qulflash — hozir tayinlangan har bir bolani o'z avtobusiga "mahkamlaydi", shunda keyinroq 1-2 ta yangi bola qo'shilsa, avvalgi taqsimot buzilmaydi (yangi bolalar bo'sh joyga qo'shiladi).</p>
       <div id="map-routes"></div>
+      <div id="street-names" style="margin-top:10px;"></div>
       <p class="hint" style="margin-top:8px;">🚩 katta belgi — yo'nalish boshlanish nuqtasi (eng uzoq bekat). Bekat belgisini surib, chiqish nuqtasini qo'lda to'g'irlash mumkin. O'quvchi (kichik nuqta) ustiga bosilsa ma'lumotlari ochiladi.</p>
       <div id="bus-summaries" style="margin-top:16px;"></div>
+    </div>
+  </div>
+
+  <!-- ===================== SOZLAMALAR ===================== -->
+  <div class="tab-panel" id="tab-sozlamalar" hidden>
+    <div class="card">
+      <h2>Telegram bot</h2>
+      <p class="hint">Bot tokeni hech qachon bu yerda yoki saytda ko'rinmaydi (u Apps Script'ning yashirin sozlamalarida turadi) — bu yerda faqat botning OMMAVIY havolasi, kuratorlarga/rahbariyatga yuborish uchun.</p>
+      <label for="set-botlink">Bot havolasi (masalan https://t.me/SizningBotingiz)</label>
+      <input type="text" id="set-botlink" placeholder="https://t.me/...">
+      <button type="button" class="btn-primary" id="btn-save-botlink">Saqlash</button>
+      <div class="form-error" id="botlink-msg"></div>
+    </div>
+
+    <div class="card">
+      <h2>Umumiy hisobot qabul qiluvchilar</h2>
+      <p class="hint">Maktab rahbariyati (direktor, o'quv ishlari bo'yicha o'rinbosar va h.k.) — bot orqali barcha sinflar bo'yicha umumiy hisobotni ola oladi.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Ism</th><th>Lavozimi</th><th>Bot holati</th><th></th></tr></thead>
+          <tbody id="overall-rows"></tbody>
+        </table>
+      </div>
+      <div class="row2" style="margin-top:14px;">
+        <button type="button" class="btn-ghost" id="btn-add-overall">+ Qo'shish</button>
+        <button type="button" class="btn-primary" id="btn-save-overall" style="margin-top:0;">Saqlash</button>
+      </div>
+      <div class="form-error" id="overall-msg"></div>
+    </div>
+
+    <div class="card">
+      <h2>Umumiy statistika (PDF)</h2>
+      <p class="hint">Maktab rahbariyati uchun: nechta o'quvchi bor, nechtasi avtobusdan foydalanadi, har bir sinf bo'yicha alohida, shuningdek to'liq o'quvchilar ro'yxati.</p>
+      <div class="row2" style="margin:10px 0;">
+        <label style="display:flex;align-items:center;gap:6px;font-weight:400;margin:0;flex:none;width:auto;"><input type="checkbox" id="org-pdf-phone" style="width:auto;"> Telefon raqamlarini qo'shish</label>
+        <label style="display:flex;align-items:center;gap:6px;font-weight:400;margin:0;flex:none;width:auto;"><input type="checkbox" id="org-pdf-loc" style="width:auto;"> Manzil havolasini qo'shish</label>
+      </div>
+      <button type="button" class="btn-ghost" id="btn-org-pdf">📄 Umumiy statistika PDF</button>
     </div>
   </div>
 
@@ -222,6 +309,7 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="config.js"></script>
 <script src="shared.js"></script>

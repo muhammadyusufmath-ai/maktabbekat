@@ -208,7 +208,10 @@ function fetchOsrmRoute(points) {
   var coordStr = points
     .map(function (p) { return p.lng.toFixed(6) + "," + p.lat.toFixed(6); })
     .join(";");
-  var url = "https://router.project-osrm.org/route/v1/driving/" + coordStr + "?overview=full&geometries=geojson";
+  // steps=true — har bir bo'lakning qaysi ko'chadan o'tishini ham so'raymiz
+  // (ko'cha nomlari), shu bilan har bir avtobusning taxminiy yo'nalishini
+  // matn shaklida ham ko'rsatish mumkin bo'ladi.
+  var url = "https://router.project-osrm.org/route/v1/driving/" + coordStr + "?overview=full&geometries=geojson&steps=true";
 
   var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
   var timeoutId = controller ? setTimeout(function () { controller.abort(); }, 8000) : null;
@@ -224,7 +227,8 @@ function fetchOsrmRoute(points) {
       var route = data.routes[0];
       var latlngs = route.geometry.coordinates.map(function (c) { return [c[1], c[0]]; });
       var legs = (route.legs || []).map(function (l) { return { distanceKm: l.distance / 1000, durationMin: l.duration / 60 }; });
-      return { distanceKm: route.distance / 1000, durationMin: route.duration / 60, latlngs: latlngs, legs: legs, real: true };
+      var streetNames = extractStreetNames_(route.legs || []);
+      return { distanceKm: route.distance / 1000, durationMin: route.duration / 60, latlngs: latlngs, legs: legs, streetNames: streetNames, real: true };
     })
     .catch(function () {
       if (timeoutId) clearTimeout(timeoutId);
@@ -238,8 +242,26 @@ function fetchOsrmRoute(points) {
       }
       var durationMin = legs.reduce(function (s, l) { return s + l.durationMin; }, 0);
       var latlngs = points.map(function (p) { return [p.lat, p.lng]; });
-      return { distanceKm: distKm, durationMin: durationMin, latlngs: latlngs, legs: legs, real: false };
+      // To'g'ri chiziq taxminida haqiqiy ko'cha nomlari mavjud emas.
+      return { distanceKm: distKm, durationMin: durationMin, latlngs: latlngs, legs: legs, streetNames: [], real: false };
     });
+}
+
+// OSRM'ning steps ro'yxatidan takrorlanmas, bo'sh bo'lmagan ko'cha
+// nomlarini tartib bilan yig'ib chiqadi.
+function extractStreetNames_(legs) {
+  var seen = {};
+  var names = [];
+  legs.forEach(function (leg) {
+    (leg.steps || []).forEach(function (step) {
+      var name = step.name;
+      if (name && !seen[name]) {
+        seen[name] = true;
+        names.push(name);
+      }
+    });
+  });
+  return names;
 }
 
 // Har bir bekatga taxminiy yetib kelish (bolani olish) vaqtini hisoblaydi.
@@ -273,6 +295,9 @@ function computeRoutes(entries, school, busCount, maxWalkM, capacities, opts) {
   var arrivalHHMM = opts.arrivalHHMM || "08:20";
   var schoolWalkRadiusM = opts.schoolWalkRadiusM || 0;
   var resolveOverrideIndex = opts.resolveOverrideIndex || function () { return null; };
+  var direction = opts.direction === "ketish" ? "ketish" : "kelish";
+  var departureFromSchool = opts.departureFromSchool || "14:00";
+  var kmCapPerBus = opts.kmCapPerBus || 0;
 
   var withLoc = entries.filter(function (e) { return e.lat != null && e.lng != null; });
   withLoc.forEach(function (e) {
@@ -298,12 +323,23 @@ function computeRoutes(entries, school, busCount, maxWalkM, capacities, opts) {
   var assign = assignStopsToBuses(stops, busCount, capacities, school);
   var busPromises = assign.buses.map(function (bus) {
     if (!bus.stops.length) return Promise.resolve({ stops: [], count: 0, order: [], route: null, stopTimes: [], departure: null });
-    var ordered = orderStops(bus.stops, school);
-    var points = [school].concat(ordered.map(function (s) { return { lat: s.lat, lng: s.lng }; })).concat([school]);
+    var kelishOrder = orderStops(bus.stops, school); // eng uzoqdan -> maktabga yaqinlashib
+    var ordered, points;
+    if (direction === "ketish") {
+      // Ketish (maktabdan tarqalish): yo'nalish teskarisiga aylantiriladi —
+      // avtobus maktabdan chiqib, eng yaqin bekatdan boshlab, eng uzog'ida
+      // tugatadi. Maktabga qaytish hisoblanmaydi (bolalar tushib ketadi).
+      ordered = kelishOrder.slice().reverse();
+      points = [school].concat(ordered.map(function (s) { return { lat: s.lat, lng: s.lng }; }));
+    } else {
+      ordered = kelishOrder;
+      points = [school].concat(ordered.map(function (s) { return { lat: s.lat, lng: s.lng }; })).concat([school]);
+    }
     return fetchOsrmRoute(points).then(function (route) {
-      var dep = suggestDeparture(route.durationMin, ordered.length, arrivalHHMM);
+      var dep = direction === "ketish" ? departureFromSchool : suggestDeparture(route.durationMin, ordered.length, arrivalHHMM);
       var stopTimes = computeStopClockTimes(route.legs || [], ordered.length, dep, DWELL_MIN_PER_STOP);
-      return { stops: bus.stops, count: bus.count, order: ordered, route: route, stopTimes: stopTimes, departure: dep };
+      var overKmCap = kmCapPerBus > 0 && route.distanceKm > kmCapPerBus;
+      return { stops: bus.stops, count: bus.count, order: ordered, route: route, stopTimes: stopTimes, departure: dep, direction: direction, overKmCap: overKmCap };
     });
   });
   return Promise.all(busPromises).then(function (buses) {

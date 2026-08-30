@@ -233,10 +233,165 @@ Yangilash uchun:
 
 ---
 
+## 4-QADAM: Telegram bot ulash (ixtiyoriy, lekin tavsiya etiladi)
+
+Bot orqali har bir sinfning kuratori/ustozi o'z sinfi bo'yicha hisobotni,
+maktab rahbariyati esa umumiy hisobotni to'g'ridan-to'g'ri Telegram'da
+oladi — saytga kirishning hojati yo'q.
+
+1. Telegram'da **@BotFather** ni toping, `/newbot` buyrug'ini yuboring.
+2. Botga ism bering (masalan "Bekat maktab avtobusi"), so'ng foydalanuvchi
+   nomini so'raydi — oxiri `bot` bilan tugashi shart (masalan
+   `Bekat123Bot`). BotFather sizga bir qatorli **token** beradi
+   (masalan `123456789:AAExampleTokenDoNotShare`) — buni hech kimga,
+   hech qayerga (GitHub'ga ham) qo'ymang, parol kabi saqlang.
+3. Google Sheets'dagi **Apps Script** muharririga qayting (1-QADAM'dagi
+   joy). Chap tomondagi charxpalak (⚙️ Project Settings) belgisini bosing,
+   pastda **Script Properties** bo'limini toping, **Add script property**
+   ni bosing: nomi `TELEGRAM_BOT_TOKEN`, qiymati — token'ingiz. **Save**.
+   *(Token shu yerda, faqat siz ko'radigan joyda qoladi — saytning ochiq
+   kodiga hech qachon chiqmaydi.)*
+4. Qaytadan **Editor** ga o'ting, kod ichidan `setupTelegramWebhook`
+   funksiyasini toping. Uning ichidagi `WEB_APP_URL` qatoriga 1-QADAM'da
+   olgan `.../exec` havolangizni qo'ying, **Save**.
+5. Yuqoridagi funksiyalar ro'yxatidan `setupTelegramWebhook` ni tanlab,
+   ▶️ **Run** tugmasini bosing (birinchi marta ruxsat so'raydi — o'z
+   hisobingiz bilan tasdiqlang). Bu — bir martalik amal, botni saytingizga
+   "ulaydi". Muvaffaqiyatli bo'lsa, jurnalda (Execution log) xatolik
+   chiqmaydi.
+6. Admin panelning **Sozlamalar** bo'limida, "Bot havolasi" maydoniga
+   `https://t.me/Bot123Bot` (o'z bot nomingiz bilan) kabi ommaviy havolani
+   yozib saqlang — bu havola kuratorlarga/rahbariyatga ko'rsatiladi (token
+   emas, shunchaki botning ochiq manzili).
+
+Shundan keyin:
+
+- **Kuratorlar** bo'limida har bir sinfga ustoz qo'shib saqlaganingizda,
+  jadvalda o'sha ustoz uchun "havolani ko'rish" tugmasi chiqadi — shu
+  havolani (kod bilan, masalan `https://t.me/Bot123Bot?start=ABC123`)
+  ustozga yuborasiz, u botda "Start" bosishi bilan ulanadi va shundan
+  keyin botga `/hisobot` yozib, faqat **o'ziga biriktirilgan sinf**
+  bo'yicha (kim ro'yxatdan o'tgan, kim o'tmagan) hisobot oladi.
+- **Sozlamalar → Umumiy hisobot qabul qiluvchilar**ga xuddi shunday
+  qo'shilgan odam (masalan direktor) bot orqali barcha sinflar bo'yicha
+  umumiy statistikani oladi.
+- Agar kimningdir kirishini to'xtatmoqchi bo'lsangiz — uni shu ro'yxatdan
+  o'chirib qayta saqlang; u botdan hisobot ololmay qoladi (kirishKodi va
+  ulanish ma'lumoti o'sha odam bilan birga o'chadi).
+- Agar odam ismi/telefonini o'zgartirib qayta saqlasangiz, oldin berilgan
+  kod/ulanish **yo'qolmaydi** — faqat "qayta bog'lash" kerak bo'lganda
+  (masalan kod kimgadir noto'g'ri yuborilgan bo'lsa), shu odam qatoriga
+  qo'lda `regenerate` so'rovi yuborish kerak bo'ladi (hozircha buning uchun
+  admin panelida alohida tugma yo'q — kerak bo'lsa ayting, qo'shib beraman).
+
+---
+
+## YANGI IMKONIYATLAR (2-bosqich yangilanish)
+
+- **Kelish/Ketish alohida jadval**: har bir o'quvchi uchun ertalab
+  (maktabga) va kunduzi (uydan) avtobusdan foydalanish kunlari endi
+  **alohida-alohida** belgilanadi (Ro'yxat bo'limida ✎ orqali, ikkita
+  mustaqil hafta kunlari ro'yxati). Oddiy kundalik o'quvchi uchun
+  standart holat — ikkalasida ham "har kuni".
+- **Saqlash tugmalari**: barcha "Saqlash" tugmalari endi bosilganda
+  o'chib, "Saqlanmoqda…" ko'rsatadi, muvaffaqiyatli bo'lsa yashil
+  bildirishnoma (toast) va "Saqlandi ✓" chiqadi — internet uzilib qolsa,
+  aniq xato xabari beriladi.
+- **Telefon xatosi belgisi**: agar Google Sheets biror qatorda "+998..."
+  raqamini eski xato (FORMULA/#N/A) holida saqlab qolgan bo'lsa, Ro'yxat
+  jadvalida o'sha qator "⚠ buzilgan" deb alohida ko'rsatiladi — shu
+  ota-onadan raqamni qayta so'rab, ✎ orqali to'g'irlash kerak bo'ladi.
+- **Tez qo'shish olib tashlandi**: O'quvchilar ro'yxati bo'limidagi
+  ko'p qatorli "tez qo'shish" matn maydoni olib tashlandi — endi faqat
+  pastdagi bitta-bitta qo'shish qoladi (chalkashlikning oldini olish
+  uchun).
+- **Bekatni qo'lda belgilash**: Yo'nalishlar bo'limida yangi karta —
+  xaritadan istalgan nuqtani bosib yangi "bekat" yaratasiz, so'ng qaysi
+  o'quvchilar (ism bo'yicha qidirish bilan) shu bekatdan chiqishini
+  belgilaysiz — ularning joylashuvi shu nuqtaga o'rnatiladi.
+- **Taqsimotni qulflash**: Hisoblangan natijada "🔒 Ushbu taqsimotni
+  qulflash" tugmasi — bosilsa, hozir tayinlangan har bir bola o'z
+  avtobusiga "mahkamlanadi". Keyinroq 1-2 ta yangi bola ro'yxatdan o'tsa,
+  avvalgi (ehtimol qo'lda to'g'rilangan) taqsimot **buzilmaydi** — yangi
+  bolalar bo'sh joyga qo'shiladi, xolos.
+- **Ketish yo'nalishi**: Hisoblashda endi "Kelish (ertalab)" yoki "Ketish
+  (maktabdan uyga)" tanlanadi. Ketishda avtobus maktabdan chiqib, eng
+  yaqin bekatdan boshlab, eng uzog'ida tugatadi (qaytish hisoblanmaydi) —
+  chiqish vaqtini o'zingiz kiritasiz.
+- **Km chegarasi**: Bitta avtobus uchun (ixtiyoriy) maksimal km
+  kiritish mumkin — oshib ketsa, natijada va PDF'da ⚠ ogohlantirish
+  bilan ko'rsatiladi (bepul yo'l xizmati "shu km dan oshmasin" deb
+  qat'iy cheklay olmaydi, shuning uchun bu qat'iy emas, balki
+  ogohlantiruvchi belgi).
+- **Ko'cha nomlari**: Har bir avtobus qaysi ko'chalardan o'tishi endi
+  natija sahifasida va PDF'da matn shaklida ko'rsatiladi (OSRM xizmati
+  ishlagan holatda; taxminiy hisobda ko'cha nomi mavjud emasligi ochiq
+  aytiladi).
+- **Xaritadagi bekat raqamlari**: Har bir bekat endi xaritada doim
+  ko'rinadigan raqam bilan belgilanadi (avval faqat bosilganda ko'rinardi).
+- **PDF v2**: Barcha PDF hisobotlar endi tartibli jadval (avtomatik sahifa
+  o'tkazish bilan) ko'rinishida, oldingi qo'lda joylashtirilgan matn
+  o'rniga. Yangi **"Umumiy statistika PDF"** (Sozlamalar bo'limida) —
+  maktab rahbariyati uchun: jami o'quvchilar, avtobusdan foydalanadiganlar
+  foizi, har bir sinf bo'yicha alohida, xohlasangiz telefon/manzil
+  ustunlari bilan to'liq ro'yxat.
+- **Kuratorlar va Sozlamalar bo'limlari** — yuqoridagi "Telegram bot"
+  qismiga qarang.
+- **Google Maps — 1-bosqich (Yo'nalishlar xaritasi)**: `config.js`da
+  `GOOGLE_MAPS_API_KEY` kiritilgan bo'lsa, admin panelning **Yo'nalishlar**
+  bo'limidagi natija xaritasi endi Google Maps orqali chiziladi (avtobus
+  chiziqlari, bekatlar, o'quvchi nuqtalari, surish, bosilganda ma'lumot —
+  bari xuddi avvalgidek ishlaydi, faqat xarita provayderi almashgan).
+  Yuqori chap burchakda **Traffic / Transit / Bicycling** qatlamlarini
+  yoqib-o'chirish uchun checkboxlar bor; xarita turi (yo'l/sputnik/relyef)
+  va Street View (odamcha belgisi) — bular Google xaritasining o'zida
+  standart tugmalar sifatida chiqadi. Boshqa ikkita xarita (Ro'yxatdan
+  o'tish formasidagi va admin paneldagi "Maktab joylashuvi") hozircha
+  **hali ham bepul OpenStreetMap'da** ishlayapti — bu ikkovi keyingi
+  bosqichlarda, siz tasdiqlagach, xuddi shu tarzda o'tkaziladi.
+
+  **Ochiq aytishim kerak bo'lgan uchta narsa:**
+  1. Ekranga siz yuborgan skrinshotdagi "Wildfires" va "Air Quality"
+     tugmalari — bular Google'ning o'z tayyor ilovasidagi maxsus
+     qatlamlar, oddiy saytga o'rnatiladigan xarita kodida ("Maps
+     JavaScript API") mavjud emas — shuning uchun ularni qo'sha olmadim.
+     Xuddi shunday, "Measure" (masofa o'lchash) tugmasi ham standart
+     tayyor tugma sifatida yo'q edi.
+  2. Men ishlayotgan muhitda umuman internetga chiqish cheklangan (hatto
+     Google'ning o'z serveriga ham ulana olmadim) — shuning uchun bu
+     xaritani haqiqiy brauzerda, haqiqiy kalitingiz bilan hali **ko'zim
+     bilan ko'rib sinamadim**. Kodni juda ehtiyotkorlik bilan yozdim va
+     kalit bo'lmaganda hech narsa o'zgarmasligini (hozirgi Leaflet yo'lini)
+     to'liq testdan o'tkazdim, lekin GitHub'ga yuklab, saytni ochganingizda
+     "Yo'nalishlar" bo'limini albatta birinchi bo'lib tekshiring — agar
+     xarita chiqmasa yoki nototo'g'ri ishlasa, skrinshot tashlang, darrov
+     tuzataman (kalitni bo'sh qoldirsangiz, bir zumda avvalgi bepul
+     xaritaga qaytadi — hech narsa buzilmaydi).
+  3. Har bir avtobus uchun PDF yuklab olishda xarita rasmi endi Google
+     xaritasidan olinadi — bu ba'zan (texnik sabablarga ko'ra) bo'sh/oq
+     rasm sifatida chiqishi mumkin. Agar shunday bo'lsa, xavotir olmang —
+     PDF'ning jadval qismi (o'quvchilar, vaqtlar, ko'chalar) baribir
+     to'liq chiqadi, faqat xarita rasmi bo'lmaydi; shuni ham sinab ko'rib
+     xabar bering.
+
+  Sinab ko'rib, hammasi joyida bo'lsa — Ro'yxatdan o'tish formasi va
+  "Maktab joylashuvi" xaritalarini ham xuddi shu tarzda Google Maps'ga
+  o'tkazamiz.
+
+**Muhim: bu safar ham hech qanday eski ma'lumot o'chirilmadi yoki qayta
+yozilmadi.** Yangi maydonlar (`KelishKunlari`, `KetishKunlari`) va yangi
+varaqlar (`Kuratorlar`, `UmumiyHisobot`, `Sozlamalar`) barchasi **qo'shimcha**
+— "Royxat" varag'idagi mavjud qatorlaringizga (ism, familiya, telefon,
+joylashuv va h.k.) hech kim tegmaydi. Apps Script kodini yangilash uchun
+"MIGRATSIYA" bo'limidagi 1-4 qadamlarni takrorlang (eski kodni o'chirib,
+yangi `google-apps-script.gs` matnini joylashtirish, **Manage deployments**
+orqali yangi versiya deploy qilish).
+
+---
+
 ## Keyingi qadam
 
-Endi hammasi bir joyda: ro'yxat, sinflar, haydovchilar va yo'nalishlar.
-Yo'nalishlarni hisoblab bo'lgach, natijalarni skrinshot yoki CSV qilib
-menga yuborsangiz, birga ko'rib chiqib sozlashimiz mumkin — masalan
-avtobus sonini yoki maksimal yurish masofasini o'zgartirib, natijani
-solishtirish.
+Endi hammasi bir joyda: ro'yxat, sinflar, haydovchilar, kuratorlar,
+Telegram bot va yo'nalishlar (kelish ham, ketish ham). Google Maps
+kalitingizni olib bo'lgach yoki botni ulashda biror joyda qiynalsangiz,
+ayting — birga ko'rib chiqamiz.

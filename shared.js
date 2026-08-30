@@ -129,10 +129,63 @@ function showToast(message, ms) {
   }, ms || 4000);
 }
 
+// Har qanday "Saqlash" tugmasi uchun bir xil naycha: bosilganda o'chib
+// zagruzka ko'rsatadi, natijaga qarab yashil "Saqlandi ✓" yoki qizil xato
+// matnini msgEl ichiga yozadi, oxirida tugmani asl holatiga qaytaradi.
+function withSaving(btn, promiseFn, msgEl, successText) {
+  var origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Saqlanmoqda…";
+  if (msgEl) { msgEl.textContent = ""; msgEl.className = ""; }
+  return promiseFn()
+    .then(function (r) {
+      if (msgEl) { msgEl.textContent = successText || "Saqlandi ✓"; msgEl.className = "form-ok"; }
+      showToast(successText || "Saqlandi ✓");
+      return r;
+    })
+    .catch(function (err) {
+      if (msgEl) { msgEl.textContent = "Saqlanmadi — internetni tekshiring."; msgEl.className = "form-error"; }
+      throw err;
+    })
+    .finally(function () {
+      btn.disabled = false;
+      btn.textContent = origText;
+    });
+}
+
 function todayWeekdayCode() {
   // JS: 0=Yakshanba..6=Shanba
   var map = ["Yak", "Dush", "Sesh", "Chor", "Pay", "Juma", "Shan"];
   return map[new Date().getDay()];
+}
+
+// ---- Google Maps (ixtiyoriy) ----
+// GOOGLE_MAPS_API_KEY bo'sh bo'lsa, bu funksiyalar chaqirilmaydi va sayt
+// xavfsiz tarzda bepul OpenStreetMap/Leaflet'da davom etadi.
+function useGoogleMaps() {
+  return typeof GOOGLE_MAPS_API_KEY !== "undefined" && !!GOOGLE_MAPS_API_KEY;
+}
+
+var _googleMapsLoadPromise = null;
+function loadGoogleMaps() {
+  if (typeof google !== "undefined" && google.maps) return Promise.resolve(google.maps);
+  if (_googleMapsLoadPromise) return _googleMapsLoadPromise;
+  _googleMapsLoadPromise = new Promise(function (resolve, reject) {
+    var cbName = "__bekatGMapsReady_" + Date.now();
+    window[cbName] = function () {
+      delete window[cbName];
+      resolve(window.google.maps);
+    };
+    var script = document.createElement("script");
+    script.src = "https://maps.googleapis.com/maps/api/js?key=" + encodeURIComponent(GOOGLE_MAPS_API_KEY) + "&callback=" + cbName;
+    script.async = true;
+    script.onerror = function () {
+      _googleMapsLoadPromise = null;
+      reject(new Error("google_maps_load_failed"));
+    };
+    document.head.appendChild(script);
+  });
+  return _googleMapsLoadPromise;
 }
 
 // ---- backend bilan ishlash (Apps Script Web App) ----
