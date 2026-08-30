@@ -40,3 +40,4 @@ const WALK_CIRCUITY_FACTOR = 1.3;
 // panelidan istalgan vaqtda o'zgartirish mumkin.
 const DEFAULT_MAX_WALK_M = 500;
 const DEFAULT_BUS_CAPACITY = 50;
+const GOOGLE_MAPS_API_KEY = "AIzaSyAAjzBqMK98oosYV-TkeB58QDKs9rhR2J0";
