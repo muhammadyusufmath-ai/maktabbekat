@@ -134,13 +134,17 @@
     document.getElementById("class-fill-rows").innerHTML =
       fillRows.join("") || '<tr><td colspan="6" class="empty">Sinflar hali kiritilmagan</td></tr>';
 
-    var sorted = entries.slice().sort(function (a, b) {
+    var filterSel = document.getElementById("csv-class-filter");
+    var chosenClasses = filterSel ? Array.prototype.map.call(filterSel.selectedOptions || [], function (o) { return o.value; }) : [];
+    var tableEntries = chosenClasses.length ? entries.filter(function (e) { return chosenClasses.indexOf(e.sinf) !== -1; }) : entries;
+
+    var sorted = tableEntries.slice().sort(function (a, b) {
       var c = compareClasses(a.sinf, b.sinf);
       if (c !== 0) return c;
       return String(a.familiya || "").localeCompare(String(b.familiya || ""));
     });
     if (!sorted.length) {
-      document.getElementById("rows").innerHTML = '<tr><td colspan="9" class="empty">Hozircha ro\'yxat bo\'sh</td></tr>';
+      document.getElementById("rows").innerHTML = '<tr><td colspan="9" class="empty">' + (chosenClasses.length ? "Tanlangan sinf(lar)da yozuv yo'q" : "Hozircha ro'yxat bo'sh") + '</td></tr>';
       return;
     }
     var html = [];
@@ -214,13 +218,20 @@
     });
   }
 
-  // ---- CSV filtri + eksport ----
+  // ---- Sinf filtri (jadval ko'rinishi + CSV eksport ikkalasi uchun ham) ----
   function fillCsvClassFilter(classes, entries) {
     var sel = document.getElementById("csv-class-filter");
+    var prevSelected = Array.prototype.map.call(sel.selectedOptions || [], function (o) { return o.value; });
     var names = classes.length ? classes.map(function (c) { return c.sinf; }) : Array.from(new Set(entries.map(function (e) { return e.sinf; })));
     names.sort(compareClasses);
     sel.innerHTML = names.map(function (n) { return '<option value="' + esc(n) + '">' + esc(n) + "</option>"; }).join("");
+    Array.prototype.forEach.call(sel.options, function (o) {
+      if (prevSelected.indexOf(o.value) !== -1) o.selected = true;
+    });
   }
+  document.getElementById("csv-class-filter").addEventListener("change", function () {
+    renderRoyxat(lastEntries, lastClasses);
+  });
 
   document.getElementById("btn-csv").addEventListener("click", function () {
     var sel = document.getElementById("csv-class-filter");
@@ -272,6 +283,8 @@
       '<div class="form-error" id="ee-msg"></div>';
 
     attachPhoneMask(document.getElementById("ee-phone"), function () {});
+    wireNameInput(document.getElementById("ee-ism"));
+    wireNameInput(document.getElementById("ee-familiya"));
 
     document.getElementById("ee-save").addEventListener("click", function () {
       var btn = document.getElementById("ee-save");
@@ -279,8 +292,8 @@
       var kelishKunlari = Array.prototype.filter.call(body.querySelectorAll(".ee-kelish-day"), function (c) { return c.checked; }).map(function (c) { return c.value; });
       var ketishKunlari = Array.prototype.filter.call(body.querySelectorAll(".ee-ketish-day"), function (c) { return c.checked; }).map(function (c) { return c.value; });
       var fields = {
-        ism: document.getElementById("ee-ism").value.trim(),
-        familiya: document.getElementById("ee-familiya").value.trim(),
+        ism: capitalizeName(document.getElementById("ee-ism").value),
+        familiya: capitalizeName(document.getElementById("ee-familiya").value),
         sinf: document.getElementById("ee-sinf").value,
         telefon: fullPhone(document.getElementById("ee-phone").value),
         kelishKunlari: kelishKunlari.join(","),
@@ -355,15 +368,24 @@
       '<td><button type="button" class="tbl-del">✕</button></td></tr>'
     );
   }
+  function wireRosterNameInputs() {
+    document.querySelectorAll("#roster-rows .ro-ism, #roster-rows .ro-familiya").forEach(function (inp) {
+      if (inp._nameWired) return;
+      inp._nameWired = true;
+      wireNameInput(inp);
+    });
+  }
   function loadRoster() {
     Promise.all([apiGet("roster"), apiGet("classes")]).then(function (res) {
       lastClasses = res[1] || [];
       var tbody = document.getElementById("roster-rows");
       tbody.innerHTML = (res[0] || []).map(function (r) { return rosterRowHtml(r.sinf, r.ism, r.familiya); }).join("") || rosterRowHtml("", "", "");
+      wireRosterNameInputs();
     });
   }
   document.getElementById("btn-add-roster-row").addEventListener("click", function () {
     document.getElementById("roster-rows").insertAdjacentHTML("beforeend", rosterRowHtml("", "", ""));
+    wireRosterNameInputs();
   });
   document.getElementById("roster-rows").addEventListener("click", function (ev) {
     if (ev.target.classList.contains("tbl-del")) ev.target.closest("tr").remove();
@@ -373,8 +395,8 @@
       .call(document.querySelectorAll("#roster-rows tr"), function (tr) {
         return {
           sinf: tr.querySelector(".ro-sinf").value.trim(),
-          ism: tr.querySelector(".ro-ism").value.trim(),
-          familiya: tr.querySelector(".ro-familiya").value.trim(),
+          ism: capitalizeName(tr.querySelector(".ro-ism").value),
+          familiya: capitalizeName(tr.querySelector(".ro-familiya").value),
         };
       })
       .filter(function (r) { return r.ism || r.familiya; });
@@ -528,11 +550,22 @@
       var settings = res[0] || {};
       BOT_LINK_CACHE = settings.BotLink || "";
       document.getElementById("set-botlink").value = BOT_LINK_CACHE;
+      document.getElementById("rep-shownames").checked = settings.ShowNotYetNames !== "0";
+      document.getElementById("rep-perclass").checked = settings.OverallPerClass !== "0";
       var tbody = document.getElementById("overall-rows");
       tbody.innerHTML = (res[1] || []).map(function (o) { return overallRowHtml(o.ism, o.lavozimi, o.kirishKodi, o["bogʻlangan"]); }).join("") || overallRowHtml("", "", "", false);
       wireOverallLinks();
     });
   }
+  document.getElementById("btn-save-reportsettings").addEventListener("click", function () {
+    var btn = document.getElementById("btn-save-reportsettings");
+    var msg = document.getElementById("reportsettings-msg");
+    var values = {
+      ShowNotYetNames: document.getElementById("rep-shownames").checked ? "1" : "0",
+      OverallPerClass: document.getElementById("rep-perclass").checked ? "1" : "0",
+    };
+    withSaving(btn, function () { return apiPost({ type: "settings", values: values }); }, msg).catch(function () {});
+  });
   document.getElementById("btn-save-botlink").addEventListener("click", function () {
     var link = document.getElementById("set-botlink").value.trim();
     var btn = document.getElementById("btn-save-botlink");
@@ -993,6 +1026,42 @@
     ).catch(function () { alert("Qulflashda xatolik, qayta urinib ko'ring."); });
   });
 
+  // Kuratorlarga hozirgi hisoblangan taqsimot bo'yicha xabar yuborish —
+  // har bir o'quvchining bekat vaqti, biriktirilgan avtobus/haydovchi va
+  // telefon raqamlari kuratorning shaxsiy Telegram chatiga yuboriladi.
+  document.getElementById("btn-notify-kurators").addEventListener("click", function () {
+    if (!lastRouteResult) { showToast("Avval taqsimotni hisoblang."); return; }
+    var btn = this;
+    var assignments = [];
+    lastRouteResult.buses.forEach(function (bus, i) {
+      if (!bus.route) return;
+      var d = lastDrivers[i] || {};
+      (bus.order || []).forEach(function (s, idx) {
+        var t = bus.stopTimes && bus.stopTimes[idx] ? bus.stopTimes[idx] : "";
+        s.students.forEach(function (st) {
+          assignments.push({
+            sinf: st.sinf,
+            ism: st.ism,
+            familiya: st.familiya,
+            telefon: st.telefon || "",
+            direction: bus.direction || "kelish",
+            vaqt: t,
+            haydovchi: d.haydovchi || "",
+            avtobusRaqam: d.raqam || String(i + 1),
+          });
+        });
+      });
+    });
+    if (!assignments.length) { showToast("Yuborish uchun taqsimot topilmadi — avval hisoblang."); return; }
+    if (!window.confirm(assignments.length + " ta o'quvchi bo'yicha kuratorlarga Telegram orqali xabar yuborilsinmi?")) return;
+    withSaving(
+      btn,
+      function () { return apiPost({ type: "notifyKurators", assignments: assignments }); },
+      null,
+      "Xabarlar yuborildi ✓"
+    ).catch(function () { alert("Yuborishda xatolik, qayta urinib ko'ring."); });
+  });
+
   function startIcon(color, number) {
     return L.divIcon({
       className: "",
@@ -1116,20 +1185,40 @@
     };
   }
 
+  // MUHIM: `map.controls[pos].push(el)` elementni Google'ning ICHKI boshqaruv
+  // qatlamiga ko'chiradi — bu ko'chirish har doim ham darhol (sinxron)
+  // bo'lavermaydi, shuning uchun push()dan keyin document.getElementById
+  // orqali bolalarini qidirish ba'zan topolmay, xatolikka olib kelishi
+  // mumkin edi (bu butun xaritani "ishlamayapti" qilib ko'rsatib yuborardi,
+  // garchi asl sabab kalit yoki internet emas, aynan shu edi). Endi
+  // checkbox elementlarini createElement bilan xotirada yasab, ularga
+  // listenerni HALI DOMga qo'shilmasdan turib ulaymiz — shunda hech qanday
+  // keyingi qidiruv (getElementById) kerak bo'lmaydi.
   function addGMapLayerToggle(gmaps) {
     if (document.getElementById("gmap-layer-toggle")) return;
     var box = document.createElement("div");
     box.id = "gmap-layer-toggle";
     box.style.cssText = "background:#fff;padding:8px 12px;margin:10px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.3);font:13px sans-serif;";
-    box.innerHTML =
-      '<label style="display:block;font-weight:400;margin:0 0 4px;"><input type="checkbox" id="gmap-cb-traffic" style="width:auto;"> Traffic (tirbandlik)</label>' +
-      '<label style="display:block;font-weight:400;margin:0 0 4px;"><input type="checkbox" id="gmap-cb-transit" style="width:auto;"> Transit</label>' +
-      '<label style="display:block;font-weight:400;margin:0;"><input type="checkbox" id="gmap-cb-bicycling" style="width:auto;"> Bicycling</label>';
-    gMap.controls[gmaps.ControlPosition.TOP_LEFT].push(box);
+
+    function makeToggle(labelText, onChange) {
+      var label = document.createElement("label");
+      label.style.cssText = "display:block;font-weight:400;margin:0 0 4px;";
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.style.width = "auto";
+      cb.addEventListener("change", function (e) { onChange(e.target.checked); });
+      label.appendChild(cb);
+      label.appendChild(document.createTextNode(" " + labelText));
+      box.appendChild(label);
+      return cb;
+    }
+
     gMapLayers = { traffic: new gmaps.TrafficLayer(), transit: new gmaps.TransitLayer(), bicycling: new gmaps.BicyclingLayer() };
-    document.getElementById("gmap-cb-traffic").addEventListener("change", function (e) { gMapLayers.traffic.setMap(e.target.checked ? gMap : null); });
-    document.getElementById("gmap-cb-transit").addEventListener("change", function (e) { gMapLayers.transit.setMap(e.target.checked ? gMap : null); });
-    document.getElementById("gmap-cb-bicycling").addEventListener("change", function (e) { gMapLayers.bicycling.setMap(e.target.checked ? gMap : null); });
+    makeToggle("Traffic (tirbandlik)", function (checked) { gMapLayers.traffic.setMap(checked ? gMap : null); });
+    makeToggle("Transit", function (checked) { gMapLayers.transit.setMap(checked ? gMap : null); });
+    makeToggle("Bicycling", function (checked) { gMapLayers.bicycling.setMap(checked ? gMap : null); });
+
+    gMap.controls[gmaps.ControlPosition.TOP_LEFT].push(box);
   }
 
   function drawRouteMapGoogle(result, drivers, focusIndex) {
@@ -1145,7 +1234,10 @@
             fullscreenControl: true,
           });
           gMapInfoWindow = new gmaps.InfoWindow();
-          addGMapLayerToggle(gmaps);
+          // Bu — asosiy xarita emas, faqat qo'shimcha (Traffic/Transit/
+          // Bicycling) qatlam tugmachalari. Shu yerda xatolik chiqsa ham,
+          // asosiy xarita (marshrutlar, bekatlar) ko'rsatilishda davom etsin.
+          try { addGMapLayerToggle(gmaps); } catch (e) { console.error("Google Maps: qatlam tugmachalarini qo'shishda xatolik (xarita o'zi ishlayveradi):", e); }
         }
         gMapOverlays.forEach(function (o) { o.setMap(null); });
         gMapOverlays = [];
@@ -1221,9 +1313,14 @@
           else gMap.setCenter({ lat: currentSchool.lat, lng: currentSchool.lng });
         } catch (e) {}
       })
-      .catch(function () {
+      .catch(function (err) {
+        // Haqiqiy xatolikni konsolga yozamiz — shunda F12 orqali aniq
+        // sababini ko'rish mumkin (kalit/internet muammosimi yoki boshqa
+        // kod xatosimi), shundan keyingina foydalanuvchiga umumiy xabar
+        // ko'rsatiladi.
+        console.error("Google Maps xaritasini chizishda xatolik:", err);
         document.getElementById("map-routes").textContent =
-          "Google xaritasi yuklanmadi (kalitni yoki internetni tekshiring). Vaqtincha bepul xaritaga qaytarish uchun config.js dagi GOOGLE_MAPS_API_KEY ni bo'sh qoldiring.";
+          "Google xaritasi yuklanmadi. Sabablari: kalit noto'g'ri/cheklangan, internet yo'q, yoki kutilmagan kod xatosi (batafsili uchun F12 → Console'ni tekshiring). Vaqtincha bepul xaritaga qaytarish uchun config.js dagi GOOGLE_MAPS_API_KEY ni bo'sh qoldiring.";
       });
   }
 

@@ -63,7 +63,7 @@
           <button type="button" class="btn-ghost" id="btn-csv">⬇ CSV yuklab olish</button>
         </div>
       </div>
-      <p class="hint" style="margin:-8px 0 12px;">CSV filtri: hech narsa tanlanmasa — hammasi; Ctrl/Cmd bosib bir nechta sinfni birga tanlashingiz mumkin.</p>
+      <p class="hint" style="margin:-8px 0 12px;">Sinf filtri — jadvalni ko'rish va CSV yuklab olish ikkalasiga ham birdek ta'sir qiladi: hech narsa tanlanmasa — hammasi; Ctrl/Cmd bosib bir nechta sinfni birga tanlashingiz mumkin.</p>
       <div class="table-wrap">
         <table>
           <thead><tr>
@@ -243,6 +243,7 @@
         <div class="row2" style="flex:none;flex-wrap:wrap;">
           <select id="route-view-select" style="width:auto;padding:8px 10px;"></select>
           <button type="button" class="btn-ghost" id="btn-lock-assignment">🔒 Ushbu taqsimotni qulflash</button>
+          <button type="button" class="btn-ghost" id="btn-notify-kurators">📨 Kuratorlarga xabar yuborish</button>
           <button type="button" class="btn-ghost" id="btn-pdf-all">📄 Hammasi PDF</button>
         </div>
       </div>
@@ -263,6 +264,15 @@
       <input type="text" id="set-botlink" placeholder="https://t.me/...">
       <button type="button" class="btn-primary" id="btn-save-botlink">Saqlash</button>
       <div class="form-error" id="botlink-msg"></div>
+    </div>
+
+    <div class="card">
+      <h2>Hisobot mazmuni</h2>
+      <p class="hint">Kuratorlar va rahbariyatga botdan yuboriladigan hisobotlarda nima ko'rsatilishini shu yerdan sozlang.</p>
+      <label style="display:flex;align-items:center;gap:8px;font-weight:400;margin:0 0 10px;"><input type="checkbox" id="rep-shownames" style="width:auto;" checked> Sinf hisobotida hali ro'yxatdan o'tmagan o'quvchilarning ism-familiyasini ko'rsatish (o'chirilsa — faqat soni ko'rsatiladi)</label>
+      <label style="display:flex;align-items:center;gap:8px;font-weight:400;margin:0;"><input type="checkbox" id="rep-perclass" style="width:auto;" checked> Rahbariyatga yuboriladigan umumiy hisobotda har bir sinf bo'yicha alohida qatorni ko'rsatish (o'chirilsa — faqat maktab bo'yicha jami ko'rsatiladi)</label>
+      <button type="button" class="btn-primary" id="btn-save-reportsettings">Saqlash</button>
+      <div class="form-error" id="reportsettings-msg"></div>
     </div>
 
     <div class="card">

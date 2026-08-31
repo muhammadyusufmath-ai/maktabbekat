@@ -101,6 +101,60 @@ function localPhoneDigitsFromFull(full) {
   return formatPhoneDigits(digits);
 }
 
+// ---- Ism/familiya: faqat lotin harflari, avtomatik Bosh Harf ----
+// Ruxsat etilgan belgilar: lotin harflari, o'/g' uchun aporstrof (bir
+// nechta variantda — turli klaviaturalar turlicha belgi chiqaradi),
+// tire (qo'sh ismlar uchun) va bo'sh joy. Kirilcha yoki boshqa har qanday
+// belgi terilgan zahoti olib tashlanadi.
+var LATIN_NAME_ALLOWED_RE = /[^A-Za-z'ʻʼ`\-\s]/g;
+var LATIN_NAME_VALID_RE = /^[A-Za-z][A-Za-z'ʻʼ`\-\s]*$/;
+
+// Inputga ulab qo'yiladi: har bir bosilgan tugmada kirilcha/boshqa
+// belgilarni tozalaydi va birinchi harfni jonli ravishda katta qiladi
+// (foydalanuvchiga "shunday yozilishi kerak" degan tabiiy maslahat).
+// Faqat submit vaqtida ishlatiladigan to'liq normalizatsiya (har bir
+// so'zning birinchi harfini katta qilish) uchun capitalizeName() ga qarang.
+function wireNameInput(inputEl) {
+  if (!inputEl) return;
+  inputEl.setAttribute("autocapitalize", "words");
+  inputEl.setAttribute("autocorrect", "off");
+  inputEl.addEventListener("input", function () {
+    var atEnd = inputEl.selectionStart === inputEl.value.length;
+    var cleaned = inputEl.value.replace(LATIN_NAME_ALLOWED_RE, "");
+    if (cleaned.length) cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+    inputEl.value = cleaned;
+    if (atEnd) {
+      var len = inputEl.value.length;
+      inputEl.setSelectionRange(len, len);
+    }
+  });
+}
+
+// Yuborishdan oldin: har bir so'zning (bo'sh joy va tire bilan
+// ajratilgan) birinchi harfini katta, qolganini kichik qilib, bazaga
+// har doim bir xil, toza ko'rinishda ("Vali", "Abdullayev-O'g'li")
+// saqlanishini ta'minlaydi — foydalanuvchi hatto butunlay kichik yoki
+// KATTA harflarda yozgan bo'lsa ham.
+function capitalizeName(str) {
+  return String(str || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .split(" ")
+    .map(function (word) {
+      return word
+        .split("-")
+        .map(function (part) {
+          return part ? part.charAt(0).toUpperCase() + part.slice(1).toLowerCase() : part;
+        })
+        .join("-");
+    })
+    .join(" ");
+}
+
+function isValidLatinName(str) {
+  return LATIN_NAME_VALID_RE.test(String(str || "").trim());
+}
+
 // ---- Yotoqxona jadvali uchun hafta kunlari ----
 var WEEKDAYS_UZ = [
   { code: "Dush", label: "Dushanba" },

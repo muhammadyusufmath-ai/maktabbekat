@@ -389,6 +389,91 @@ orqali yangi versiya deploy qilish).
 
 ---
 
+## YANGI TUZATISHLAR (3-bosqich yangilanish)
+
+Siz yuborgan skrinshotlar va xabarlardan keyin quyidagilar tuzatildi/qo'shildi:
+
+- **Ism-familiya endi faqat lotin alifbosida qabul qilinadi.** Ro'yxatdan
+  o'tish formasida kirilcha (yoki boshqa har qanday) harf terilgan zahoti
+  ekrandan o'chib ketadi — foydalanuvchi kirilchada umuman yoza olmaydi.
+  Bundan tashqari, yuborishdan oldin ham qo'shimcha tekshiruv bor — agar
+  qandaydur yo'l bilan lotin bo'lmagan belgi maydonga tushib qolsa,
+  "Ism va familiyani faqat lotin harflarida yozing" degan xabar bilan
+  yuborish to'xtatiladi.
+- **Ism-familiyaning birinchi harfi avtomatik katta qilinadi** — terish
+  paytida jonli ravishda (foydalanuvchiga qanday yozish kerakligini
+  ko'rsatish uchun), va bazaga saqlashda esa har bir so'zning birinchi
+  harfi katta, qolgani kichik qilib to'liq tozalanadi (masalan
+  "vali ALIYEV" → "Vali Aliyev" bo'lib saqlanadi). Bu qoida admin
+  paneldagi **O'quvchilar ro'yxati** (roster) va **Ro'yxat** bo'limidagi
+  ✎ (tahrirlash) maydonlariga ham qo'llandi — qayerdan kiritilishidan
+  qat'i nazar, ism-familiya bazada bir xil, toza ko'rinishda saqlanadi.
+- **Sinf — hozir ham, avvalgidek, faqat tayyor ro'yxatdan tanlanadi**
+  (oddiy matn kiritish maydoni emas, balki dropdown). Agar sizda
+  "sinfi noto'g'ri kiritilgan" holatlar bo'lgan bo'lsa, buning sababi
+  ehtimol quyidagilardan biri: (a) o'sha paytda **Sinflar** bo'limiga
+  hali sinflar kiritilmagan bo'lib, forma vaqtinchalik umumiy ro'yxatdan
+  (1-A dan 11-D gacha) foydalangan va bu sizning "1a rus", "1b rus" kabi
+  nomlaringizga to'g'ri kelmagan, yoki (b) boshqa bir sabab. **Iltimos,
+  aniq qaysi bola/sinf noto'g'ri kiritilganini ayting (skrinshot bilan) —
+  shu asosda tekshirib, aniq sababini topamiz.**
+- **Ro'yxat bo'limidagi sinf filtri endi ikki vazifani bajaradi**:
+  ilgari faqat CSV yuklab olishda ishlayotgan edi, endi bir yoki bir
+  nechta sinfni tanlasangiz, jadvalning o'zi ham (ekrandagi ro'yxat) shu
+  sinf(lar) bo'yicha filtrlanadi — CSV yuklab olishda ham xuddi shu
+  tanlov qo'llanadi. Hech narsa tanlanmasa — hammasi ko'rsatiladi.
+  Umumiy statistika (jami son, sinflar bo'yicha to'ldirilganlik jadvali)
+  har doim **barcha** o'quvchilar bo'yicha hisoblanadi, filtr faqat
+  pastdagi batafsil jadvalga ta'sir qiladi.
+- **Telegram bot endi "so'zlashuvchan"**: `/start` tugmasi kod bilan
+  (havola orqali) bosilsa — avvalgidek darhol ulanadi. Lekin kodsiz
+  `/start` bosilsa (masalan botni to'g'ridan-to'g'ri qidiruv orqali
+  topib kirilganda), endi bot passiv qolmay, salomlashib, kirish kodini
+  qayerdan olish va qanday yuborish kerakligini tushuntiradi. Shuningdek,
+  endi kodni `/start ABC123` shaklida emas, shunchaki **ABC123** deb
+  yozib yuborsa ham bot uni tanib, hisobni ulaydi.
+- **Kuratorlarga avtomatik xabarlar**: (1) bola ro'yxatdan yangi
+  o'tganda, kuratorga darhol ism-familiya va telefon haqida qisqa xabar
+  boradi; (2) **Yo'nalishlar** bo'limida marshrutlarni hisoblab
+  bo'lgach, endi yangi **"📨 Kuratorlarga xabar yuborish"** tugmasi bor —
+  shuni bossangiz, har bir kurator o'z sinfidagi bolalarning bekat
+  vaqti, biriktirilgan avtobus raqami, haydovchi ismi va telefon
+  raqamlari haqida to'liq xabar oladi. Rahbariyatga yuboriladigan umumiy
+  hisobot (Sozlamalar bo'limidagi kod orqali) ham avvalgidek ishlaydi va
+  barcha sinflar bo'yicha umumiy statistikani beradi.
+- **Hisobot mazmuni endi admin paneldan sozlanadi**: Sozlamalar
+  bo'limida yangi **"Hisobot mazmuni"** kartochkasi bor — shu yerdan
+  kuratorlarga yuboriladigan hisobotda hali ro'yxatdan o'tmagan
+  o'quvchilarning ism-familiyasi ko'rsatilsinmi yoki faqat soni
+  ko'rsatilsinmi, va rahbariyatga yuboriladigan umumiy hisobotda har bir
+  sinf alohida ko'rsatilsinmi yoki faqat maktab bo'yicha jami
+  ko'rsatilsinmi — shularni belgilab, "Saqlash" tugmasini bosing.
+
+**Google Maps — topildi va tuzatildi.** Siz yuborgan skrinshotdagi
+Console loglarini diqqat bilan tekshirib chiqdim: aslida kalitingiz
+to'g'ri ishlayotgan va xarita o'zi yuklanayotgan edi (shuning uchun
+Google'ning o'z ogohlantirish xabarlari — sariq rangdagilar — chiqqan),
+lekin xaritaning yuqori burchagiga qo'shiladigan qo'shimcha
+Traffic/Transit/Bicycling tugmachalarini qo'shayotgan kodimda kichik bir
+xato bor edi (Google xaritasi bu tugmachalarni o'z ichiga "ko'chirishi"
+har doim ham darhol bo'lavermas ekan, va kodim buni darhol deb hisoblab,
+xatolik chiqargan). Bu xato butun xaritani "ishlamayapti" holatiga olib
+kelayotgan edi — garchi asl sabab kalit yoki internet emas edi. Buni
+qayta ishlab chiqib, alohida ushlanadigan qilib tuzatdim (endi hatto shu
+qo'shimcha tugmachalar biror sabab bilan ishlamay qolsa ham, asosiy
+xarita — marshrutlar, bekatlar, avtobuslar — baribir to'liq ko'rsatiladi)
+va real Google Maps API'ni taqlid qiluvchi avtomatik test bilan
+tekshirdim — endi xarita to'g'ri chiqadi. Agar GitHub'ga yuklab
+ko'rgach baribir muammo bo'lsa, endi konsolda ("F12 → Console") aniq
+xatolik matni chiqadi — shuni skrinshot qilib yuborsangiz, tezda
+tuzatamiz.
+
+Hammasi avvalgidek — hech qanday eski ma'lumot o'chirilmadi. Yangi
+`Sozlamalar` kalitlari (`ShowNotYetNames`, `OverallPerClass`) va yangi
+JS validatsiyasi faqat qo'shimcha ravishda ishlaydi.
+
+---
+
 ## Keyingi qadam
 
 Endi hammasi bir joyda: ro'yxat, sinflar, haydovchilar, kuratorlar,

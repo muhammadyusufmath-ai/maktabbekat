@@ -112,15 +112,21 @@
     rosterList.innerHTML = labels.map(function (l) { return '<option value="' + esc(l) + '"></option>'; }).join("");
   });
 
+  // MUHIM: datalist orqali "Ism — Familiya" tanlanganda rosterMatch shu
+  // TO'LIQ (— belgili) matnga qarab qidiradi — shuning uchun wireNameInput
+  // (lotin-tozalash/bosh harf) shu listenerlardan KEYIN ulanadi, aks holda
+  // "—" belgisi tozalanib, taklifni aniqlab bo'lmay qoladi.
   ismInput.addEventListener("input", function () {
     var match = rosterMatch[ismInput.value];
     if (match) {
       ismInput.value = match.ism;
-      familiyaInput.value = match.familiya;
+      familiyaInput.value = capitalizeName(match.familiya);
     }
     checkNameDone();
   });
   familiyaInput.addEventListener("input", checkNameDone);
+  wireNameInput(ismInput);
+  wireNameInput(familiyaInput);
 
   function checkNameDone() {
     if (ismInput.value.trim() && familiyaInput.value.trim()) reveal("phone");
@@ -277,13 +283,17 @@
     if (busy) return;
     showMsg("", false);
 
-    var ism = ismInput.value.trim();
-    var familiya = familiyaInput.value.trim();
+    var ism = capitalizeName(ismInput.value);
+    var familiya = capitalizeName(familiyaInput.value);
     var sinf = sinfSelect.value;
     var phoneDigits = phoneInput.value;
 
     if (!ism || !familiya || !sinf) {
       showMsg("Ism, familiya va sinfni to'ldiring.", true);
+      return;
+    }
+    if (!isValidLatinName(ism) || !isValidLatinName(familiya)) {
+      showMsg("Ism va familiyani faqat lotin harflarida yozing (kirilcha qabul qilinmaydi).", true);
       return;
     }
     if (phoneDigitsCount(phoneDigits) !== 9) {

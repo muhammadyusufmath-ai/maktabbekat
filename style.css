@@ -180,6 +180,7 @@ tr.group-row td{background:var(--surface-2);font-weight:700;color:var(--primary)
 /* ---------------- Admin: routing map ---------------- */
 #map-routes{height:420px;border-radius:var(--radius-ctrl);border:1px solid var(--border);margin-top:6px;}
 #map-school{height:260px;border-radius:var(--radius-ctrl);border:1px solid var(--border);margin-top:10px;}
+#map-manual-bekat{height:320px;border-radius:var(--radius-ctrl);border:1px solid var(--border);margin-top:10px;}
 .chip-time{font-variant-numeric:tabular-nums;color:var(--primary);}
 .bus-card{border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-top:12px;
   transition:transform .18s ease,box-shadow .18s ease;}
