@@ -582,6 +582,71 @@ yuklash — bu har doim mavjud fayllarni to'liq almashtiradi:
 
 ---
 
+## YANGI TUZATISHLAR (5-bosqich yangilanish)
+
+Yo'l tahrirlash funksiyalarini sinab ko'rgach yuborgan aniq fikr-
+mulohazalar asosida quyidagilar tuzatildi/qo'shildi. **Bu safar Google
+Sheets sxemasi o'zgarmadi — faqat 3 ta fayl (`admin.html`, `admin.js`,
+`routing.js`) yangilandi, Apps Script kodini qayta joylashtirish
+(deploy) SHART EMAS**, faqat GitHub'ga shu 3 faylni (yoki hammasini,
+`config.js`dan tashqari) qayta yuklash kifoya.
+
+- **TUZATILDI — bekat surilgach eski yo'l qolib ketishi**: avval bekatni
+  xaritada surganingizda (yoki "Yangi bekat qo'shish" orqali joyini
+  o'zgartirganingizda) yangi joylashuv saqlanardi, lekin xaritadagi yo'l
+  chizig'i ESKI holicha qolardi (admin yana "Hisoblash" tugmasini bosishi
+  kerak edi). Endi bekat surilgan ZAHOTI o'sha avtobusning yo'li OSRM
+  orqali avtomatik qayta hisoblanadi va xarita darhol to'g'ri chiziq bilan
+  yangilanadi.
+- **Bekat popup'ida endi sinfi ham ko'rinadi**: xaritada bekat belgisiga
+  bosilganda chiqadigan ro'yxatda har bir o'quvchining ism-familiyasi
+  yonida sinfi ham yoziladi.
+- **Bekatga bosilganda unga kim chiqishi chiziq bilan ko'rsatiladi**:
+  bekat belgisini bossangiz, o'sha bekatga biriktirilgan har bir
+  o'quvchining uyigacha ingichka chiziq tortiladi — boshqa bekatni
+  bossangiz, avvalgi chiziqlar o'chib, yangisi chiziladi.
+- **Yo'lni qo'lda chizish endi xaritaning o'zida, qalam belgisi bilan**:
+  avvalgi "✏️ Yo'lni qo'lda chizish" faqat tepadagi tugma edi — bu
+  "tushunarsiz" deb topilgan edi. Endi xaritaning yuqori chap
+  burchagida ✏️ (qo'lda chizish) va ➕ (yangi bekat qo'shish) belgilari
+  turadi — ular tepadagi tugmalar bilan bir xil holatni ko'rsatadi/
+  boshqaradi, xaritaning o'zidan yoqish/o'chirish mumkin. Qo'lda
+  qo'yilgan har bir nuqta HAQIQIY ko'cha bo'ylab (OSRM orqali) yo'lga
+  moslashtiriladi — bu avvaldan ham shunday ishlagan, endi shunchaki
+  yoqish-o'chirish ancha tushunarli.
+- **Qo'lda qo'yilgan bitta yo'l nuqtasini alohida o'chirish ("blokni
+  o'chirish")**: avval faqat "hammasini tozalash" tugmasi bor edi. Endi
+  sariq nuqtaning o'ziga bossangiz, "🗑 Shu nuqtani o'chirish" tugmasi
+  chiqadi — faqat o'sha bittasi o'chadi, qolganlari joyida qoladi.
+- **O'quvchini avtobusdan xaritadan turib chiqarib tashlash**: xaritada
+  o'quvchi (kichik nuqta) ustiga bosilganda endi "❌ Avtobusdan chiqarib
+  tashlash" tugmasi ham chiqadi. Bosilsa, shu o'quvchi HECH qaysi
+  avtobusga qo'yilmaydi va "🚫 Xaritadan avtobusdan chiqarib tashlangan
+  bolalar" ro'yxatida alohida ko'rinadi — ma'lumoti yo'qolmaydi, "↩
+  Qaytarish" bilan istalgan vaqt qaytarish mumkin. Bu "🚫 Xaritadan
+  chiqarilgan" (butunlay xaritadan olib tashlash) funksiyasidan FARQLI —
+  bu yerda faqat "qaysi avtobusda" degan tanlov o'chiriladi.
+- **TUZATILDI — "Avtobus uchun maksimal km" endi HAQIQIY chegara**: avval
+  bu faqat ogohlantirish edi (avtobus km chegarasidan oshsa ham, baribir
+  o'sha bekatlar bilan qolardi). Endi chegaradan oshadigan avtobusdan eng
+  uzoq bekat(lar) avtomatik chiqarilib, boshqa bo'sh avtobusga (agar u
+  ham chegaradan oshib ketmasa) sig'diriladi. Hech qaysi avtobusga
+  sig'masa, pastda yangi "📏 Km chegarasi tufayli chiqarilgan bolalar"
+  ro'yxatida ko'rinadi — admin xohlagan avtobusga qo'lda biriktirishi
+  mumkin (bu holda ogohlantirish saqlanib qoladi, chunki bu ongli tanlov).
+- **Natija tanlash ro'yxatida avtobus rangi**: "Natija" bo'limidagi
+  avtobus tanlash ro'yxati yonida endi shu avtobusning rangini
+  ko'rsatuvchi doiracha bor, ro'yxatning o'zida ham har bir avtobus nomi
+  o'z rangida yozilgan.
+
+Hammasi avvalgidek — additiv, hech qanday eski ma'lumot yo'qolmaydi,
+`config.js` va Apps Script kodiga tegilmadi. Avtomatik test (Playwright)
+yuqoridagi barcha yangi xatti-harakatlarni (shu jumladan real Leaflet
+xaritasi ustida marker surish, popup ochish, chiziq chizish) alohida
+tekshirib tasdiqladi.
+
+---
+
 ## Keyingi qadam
 
 Endi hammasi bir joyda: ro'yxat, sinflar, haydovchilar, kuratorlar,

@@ -925,12 +925,114 @@
     var btn = document.getElementById("btn-add-bekat-mode");
     btn.textContent = addBekatMode ? "➕ Xaritada nuqta bosing…" : "➕ Yangi bekat qo'shish";
     btn.classList.toggle("btn-accent", addBekatMode);
+    updateMapModeControls();
   }
   function updateDrawModeBtn() {
     var btn = document.getElementById("btn-draw-mode");
     btn.textContent = drawMode ? "✏️ Xaritada bosing (tugagach yana bosing)" : "✏️ Yo'lni qo'lda chizish";
     btn.classList.toggle("btn-accent", drawMode);
+    updateMapModeControls();
   }
+
+  // Xaritaning o'zidagi ✏️/➕ belgilarini (Leaflet va Google, ikkalasi ham)
+  // va sichqoncha kursorini joriy rejimga (addBekatMode/drawMode) mos
+  // yangilaydi — shunda admin qaysi rejim yoqilganini xaritaning o'zidan
+  // ham darhol ko'radi.
+  function updateMapModeControls() {
+    var pencilLeaflet = document.getElementById("leaflet-pencil-control");
+    if (pencilLeaflet) { pencilLeaflet.style.background = drawMode ? "#ffe066" : "#fff"; }
+    var plusLeaflet = document.getElementById("leaflet-plus-control");
+    if (plusLeaflet) { plusLeaflet.style.background = addBekatMode ? "#ffe066" : "#fff"; }
+    var pencilGoogle = document.getElementById("gmap-pencil-control");
+    if (pencilGoogle) {
+      pencilGoogle.style.background = drawMode ? "#ffe066" : "#fff";
+      pencilGoogle.style.boxShadow = drawMode ? "0 0 0 2px #d4a017" : "0 1px 4px rgba(0,0,0,.3)";
+    }
+    var plusGoogle = document.getElementById("gmap-plus-control");
+    if (plusGoogle) {
+      plusGoogle.style.background = addBekatMode ? "#ffe066" : "#fff";
+      plusGoogle.style.boxShadow = addBekatMode ? "0 0 0 2px #d4a017" : "0 1px 4px rgba(0,0,0,.3)";
+    }
+    var cursor = (addBekatMode || drawMode) ? "crosshair" : "";
+    if (routeMap && routeMap.getContainer) routeMap.getContainer().style.cursor = cursor;
+    if (gMap && gMap.setOptions) { try { gMap.setOptions({ draggableCursor: cursor || null }); } catch (e) {} }
+  }
+
+  // ---- Bekat ustiga bosilganda shu bekatga biriktirilgan o'quvchilarga
+  // chiziq tortib ko'rsatish (Leaflet va Google Maps uchun alohida, chunki
+  // ikkalasining chizish APIsi boshqacha).
+  var connectorLayerLeaflet = null;
+  function clearConnectorsLeaflet() {
+    if (connectorLayerLeaflet && routeMap) { routeMap.removeLayer(connectorLayerLeaflet); connectorLayerLeaflet = null; }
+  }
+  function highlightStopStudentsLeaflet(stop, color) {
+    clearConnectorsLeaflet();
+    connectorLayerLeaflet = L.layerGroup().addTo(routeMap);
+    (stop.students || []).forEach(function (st) {
+      if (st.lat == null) return;
+      L.polyline([[stop.lat, stop.lng], [st.lat, st.lng]], { color: color, weight: 2.5, opacity: 0.9, dashArray: "6,6" }).addTo(connectorLayerLeaflet);
+    });
+  }
+  var connectorOverlaysGoogle = [];
+  function clearConnectorsGoogle() {
+    connectorOverlaysGoogle.forEach(function (o) { o.setMap(null); });
+    connectorOverlaysGoogle = [];
+  }
+  function highlightStopStudentsGoogle(stop, color, gmaps) {
+    clearConnectorsGoogle();
+    (stop.students || []).forEach(function (st) {
+      if (st.lat == null) return;
+      var line = new gmaps.Polyline({
+        path: [{ lat: stop.lat, lng: stop.lng }, { lat: st.lat, lng: st.lng }],
+        strokeColor: color,
+        strokeOpacity: 0.9,
+        strokeWeight: 2.5,
+        map: gMap,
+      });
+      connectorOverlaysGoogle.push(line);
+    });
+  }
+
+  // ---- Bitta qo'lda qo'shilgan yo'l nuqtasini ("blok"/segmentni) o'chirish
+  // — hammasini birdan tozalaydigan mavjud "clear-via-btn" dan farqli
+  // o'laroq, faqat shu bittasini olib tashlaydi.
+  function removeDrawPointAt(busIndex, viaIdx) {
+    var bus = lastRouteResult && lastRouteResult.buses[busIndex];
+    if (!bus || !bus.manualViaPoints) return;
+    bus.manualViaPoints.splice(viaIdx, 1);
+    showToast("Nuqta o'chirildi, yo'l qayta hisoblanmoqda…");
+    recomputeBusRoute(busIndex).then(function () {
+      drawRouteMap(lastRouteResult, lastDrivers, currentFocusIndex());
+      renderBusSummaries(lastRouteResult, lastDrivers);
+    });
+  }
+
+  // ---- Xaritadan (o'quvchi bosilganda chiqadigan tugma orqali) o'quvchini
+  // avtobusdan chiqarib tashlash — "chiqarilgan" (butunlay xaritadan olib
+  // tashlash) bilan ADASHTIRMASLIK kerak: bu yerda faqat shu hisoblashda
+  // hech qaysi avtobusga qo'yilmaydi, ma'lumotlari to'liq qoladi va
+  // "🚫 Xaritadan avtobusdan chiqarib tashlangan bolalar" ro'yxatida
+  // ko'rinadi, xohlasa admin qaytarishi mumkin. Ichkarida avtobusOverride
+  // "0" qiymati bilan belgilanadi (routing.js buni "-1" forcedBusIndex
+  // sifatida o'qib, alohida ro'yxatga (manuallyRemoved) chiqaradi).
+  function removeStudentFromBusViaMap(id) {
+    if (!window.confirm("Bu o'quvchini avtobusdan chiqarib tashlashni tasdiqlaysizmi? Ma'lumotlari yo'qolmaydi, keyinroq qaytarish mumkin.")) return;
+    apiUpdateEntry(id, { avtobusOverride: "0" })
+      .then(function () {
+        showToast("Avtobusdan chiqarildi, qayta hisoblanmoqda…");
+        document.getElementById("btn-compute").click();
+      })
+      .catch(function () { alert("Saqlanmadi, qayta urinib ko'ring."); });
+  }
+  // Ikkala xarita turi ham (Leaflet popup, Google InfoWindow) haqiqiy DOM
+  // hosil qiladi — shuning uchun bitta umumiy (delegated) click tinglovchi
+  // orqali ikkalasidagi tugmalarni ham ushlaymiz.
+  document.addEventListener("click", function (ev) {
+    var rmBtn = ev.target.closest(".map-remove-student-btn");
+    if (rmBtn) { removeStudentFromBusViaMap(rmBtn.getAttribute("data-id")); return; }
+    var viaBtn = ev.target.closest(".map-remove-via-btn");
+    if (viaBtn) { removeDrawPointAt(parseInt(viaBtn.getAttribute("data-bus"), 10), parseInt(viaBtn.getAttribute("data-idx"), 10)); return; }
+  });
 
   document.getElementById("btn-add-bekat-mode").addEventListener("click", function () {
     addBekatMode = !addBekatMode;
@@ -1068,6 +1170,8 @@
     msg.textContent = "";
     document.getElementById("walkers-card").hidden = true;
     document.getElementById("unassigned-card").hidden = true;
+    document.getElementById("kmcap-unassigned-card").hidden = true;
+    document.getElementById("manual-removed-card").hidden = true;
     if (!currentSchool) {
       msg.textContent = "Avval maktab joylashuvini belgilang.";
       msg.className = "form-error";
@@ -1132,6 +1236,8 @@
         }
         renderWalkers(result.walkers || []);
         renderUnassigned(result.unassigned || [], busCount, drivers);
+        renderKmCapUnassigned(result.kmCapUnassigned || [], busCount, drivers);
+        renderManualRemoved(result.manuallyRemoved || []);
         renderRouteResults(result, drivers);
       });
     });
@@ -1189,13 +1295,113 @@
     });
   }
 
+  function updateRouteViewColorDot() {
+    var sel = document.getElementById("route-view-select");
+    var dot = document.getElementById("route-view-color-dot");
+    if (!sel || !dot) return;
+    if (sel.value === "all" || !lastDrivers) { dot.style.background = "#fff"; return; }
+    var i = parseInt(sel.value, 10);
+    dot.style.background = busColor(i, lastDrivers);
+  }
+
+  // "Sig'may qolgan" (sig'im yetmagani uchun) va "km chegarasi tufayli
+  // chiqarilgan" ro'yxatlari deyarli bir xil ko'rinishda — shuning uchun
+  // umumiy chizish funksiyasi orqali ikkalasi ham to'ldiriladi.
+  function renderUnassignedGeneric(cardId, listId, idPrefix, unassigned, busCount, drivers) {
+    var card = document.getElementById(cardId);
+    if (!unassigned.length) { card.hidden = true; return; }
+    card.hidden = false;
+    var busOptions = [];
+    for (var i = 0; i < busCount; i++) {
+      var label = "Avtobus " + (i + 1) + (drivers[i] && drivers[i].raqam ? " (№" + drivers[i].raqam + ")" : "");
+      busOptions.push({ value: String(i + 1), label: label });
+    }
+    document.getElementById(listId).innerHTML = unassigned
+      .map(function (s, idx) {
+        var names = s.students.map(function (st) { return esc(st.ism) + " " + esc(st.familiya); }).join(", ");
+        return (
+          '<div class="bus-card"><p style="margin:0 0 10px;font-size:13.5px;"><b>' + s.students.length + " ta bola:</b> " + names + "</p>" +
+          '<div class="row2"><select id="' + idPrefix + '-sel-' + idx + '" style="flex:1;">' +
+          busOptions.map(function (o) { return '<option value="' + esc(o.value) + '">' + esc(o.label) + "</option>"; }).join("") +
+          '</select><button type="button" class="btn-primary" style="margin-top:0;flex:none;" data-idx="' + idx + '" id="' + idPrefix + '-assign-' + idx + '">Belgilash</button></div></div>'
+        );
+      })
+      .join("");
+    unassigned.forEach(function (s, idx) {
+      document.getElementById(idPrefix + "-assign-" + idx).addEventListener("click", function () {
+        var raqam = document.getElementById(idPrefix + "-sel-" + idx).value;
+        var btn = this;
+        btn.disabled = true;
+        btn.textContent = "Saqlanmoqda…";
+        Promise.all(s.students.map(function (st) { return apiUpdateEntry(st.id, { avtobusOverride: raqam }); }))
+          .then(function () {
+            showToast("Belgilandi — qayta hisoblanmoqda…");
+            document.getElementById("btn-compute").click();
+          })
+          .catch(function () {
+            btn.disabled = false;
+            btn.textContent = "Belgilash";
+            alert("Saqlanmadi, qayta urinib ko'ring.");
+          });
+      });
+    });
+  }
+
+  function renderKmCapUnassigned(unassigned, busCount, drivers) {
+    renderUnassignedGeneric("kmcap-unassigned-card", "kmcap-unassigned-list", "kc-ua", unassigned, busCount, drivers);
+  }
+
+  // Admin xaritadan qo'lda "❌ Avtobusdan chiqarib tashlash" bosgan bolalar
+  // — bularni boshqa avtobusga majburlash o'rniga, faqat "↩ Qaytarish"
+  // (avtobusOverride'ni tozalab, yana avtomatik taqsimlashga qaytarish)
+  // imkoniyati beriladi.
+  function renderManualRemoved(list) {
+    var card = document.getElementById("manual-removed-card");
+    if (!list.length) { card.hidden = true; return; }
+    card.hidden = false;
+    document.getElementById("manual-removed-list").innerHTML = list
+      .map(function (s, idx) {
+        var st = s.students[0];
+        return (
+          '<div class="bus-card"><p style="margin:0 0 10px;font-size:13.5px;"><b>' + esc(st.ism) + " " + esc(st.familiya) + "</b> (" + esc(st.sinf) + ")</p>" +
+          '<button type="button" class="btn-primary" style="margin-top:0;" data-idx="' + idx + '" id="mr-restore-' + idx + '">↩ Qaytarish (avtobusga)</button></div>'
+        );
+      })
+      .join("");
+    list.forEach(function (s, idx) {
+      document.getElementById("mr-restore-" + idx).addEventListener("click", function () {
+        var btn = this;
+        btn.disabled = true;
+        btn.textContent = "Saqlanmoqda…";
+        Promise.all(s.students.map(function (st) { return apiUpdateEntry(st.id, { avtobusOverride: "" }); }))
+          .then(function () {
+            showToast("Qaytarildi — qayta hisoblanmoqda…");
+            document.getElementById("btn-compute").click();
+          })
+          .catch(function () {
+            btn.disabled = false;
+            btn.textContent = "↩ Qaytarish (avtobusga)";
+            alert("Saqlanmadi, qayta urinib ko'ring.");
+          });
+      });
+    });
+  }
+
   function renderRouteResults(result, drivers) {
     document.getElementById("route-results").hidden = false;
     var sel = document.getElementById("route-view-select");
     sel.innerHTML =
       '<option value="all">Barcha avtobuslar</option>' +
-      result.buses.map(function (b, i) { return '<option value="' + i + '">Avtobus ' + (i + 1) + " (" + b.count + " bola)</option>"; }).join("");
-    sel.onchange = function () { drawRouteMap(result, drivers, sel.value === "all" ? null : parseInt(sel.value, 10)); };
+      result.buses
+        .map(function (b, i) {
+          return '<option value="' + i + '" style="color:' + busColor(i, drivers) + ';font-weight:700;">⬤ Avtobus ' + (i + 1) + " (" + b.count + " bola)</option>";
+        })
+        .join("");
+    sel.onchange = function () {
+      updateRouteViewColorDot();
+      drawRouteMap(result, drivers, sel.value === "all" ? null : parseInt(sel.value, 10));
+    };
+    updateRouteViewColorDot();
     addBekatMode = false;
     drawMode = false;
     updateAddBekatModeBtn();
@@ -1279,12 +1485,22 @@
     });
   }
 
-  function persistStopMove(stop, lat, lng) {
+  // MUHIM (tuzatish): avval bu funksiya faqat koordinatani saqlab qo'yardi,
+  // lekin xaritadagi ESKI yo'l chizig'ini qayta chizmasdi — shuning uchun
+  // bekat surilgach, yo'l eskirib qolardi (admin yangi "Hisoblash"ni qo'lda
+  // bosmaguncha). Endi bekat surilgan ZAHOTI shu avtobusning yo'li OSRM
+  // orqali qayta hisoblanadi va xarita darhol yangi (to'g'ri) chiziq bilan
+  // qayta chiziladi.
+  function persistStopMove(stop, lat, lng, busIndex) {
     stop.lat = lat;
     stop.lng = lng;
-    Promise.all(stop.students.map(function (st) { return apiUpdateEntry(st.id, { bekatLat: lat, bekatLng: lng }); }))
-      .then(function () { showToast("Bekat joylashuvi yangilandi (keyingi hisoblashda hisobga olinadi)"); })
-      .catch(function () {});
+    Promise.all(stop.students.map(function (st) { return apiUpdateEntry(st.id, { bekatLat: lat, bekatLng: lng }); })).catch(function () {});
+    if (busIndex == null || !lastRouteResult) return;
+    showToast("Bekat joylashuvi yangilandi, yo'l shu bekatdan qayta hisoblanmoqda…");
+    recomputeBusRoute(busIndex).then(function () {
+      drawRouteMap(lastRouteResult, lastDrivers, currentFocusIndex());
+      renderBusSummaries(lastRouteResult, lastDrivers);
+    });
   }
 
   // ---- Yo'l tahrirlash: bekatlar tartibini qo'lda o'zgartirish (↑/↓) va
@@ -1386,7 +1602,40 @@
         if (addBekatMode) setManualBekatPoint(e.latlng.lat, e.latlng.lng);
         else if (drawMode) addDrawPoint(e.latlng.lat, e.latlng.lng);
       });
+      // Xaritaning o'zida turadigan ✏️ (qo'lda chizish) va ➕ (bekat
+      // qo'shish) belgilari — avvalgi variantda bu FAQAT tepadagi
+      // asboblar panelidagi tugma edi, admin buni "judayam tushunarsiz" deb
+      // topgan edi. Endi xaritaning o'zida ham aynan shu ikkita rejimni
+      // yoqadigan belgi bor (ikkalasi ham xuddi shu tugmalarni bosadi —
+      // holat bir joyda saqlanadi, faqat ko'rinishi ikki joyda ham
+      // yangilanadi).
+      var LeafletModeControl = L.Control.extend({
+        options: { position: "topleft" },
+        onAdd: function () {
+          var box = L.DomUtil.create("div", "leaflet-bar");
+          box.style.cssText = "background:#fff;display:flex;flex-direction:column;";
+          function makeBtn(id, emoji, title, onClick) {
+            var b = L.DomUtil.create("div", "", box);
+            b.id = id;
+            b.title = title;
+            b.style.cssText = "width:34px;height:34px;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:#fff;";
+            b.textContent = emoji;
+            L.DomEvent.disableClickPropagation(b);
+            L.DomEvent.on(b, "click", onClick);
+            return b;
+          }
+          makeBtn("leaflet-pencil-control", "✏️", "Yo'lni qo'lda chizish: yoqilgach, avval yuqoridan bitta avtobus tanlang, so'ng xaritada bosib qo'shimcha yo'l nuqtalarini qo'shing — yo'l shu nuqtalar orqali, haqiqiy ko'chalar bo'ylab qayta chiziladi.", function () {
+            document.getElementById("btn-draw-mode").click();
+          });
+          makeBtn("leaflet-plus-control", "➕", "Yangi bekat qo'shish: yoqilgach, xaritada bosib yangi bekat yarating.", function () {
+            document.getElementById("btn-add-bekat-mode").click();
+          });
+          return box;
+        },
+      });
+      new LeafletModeControl().addTo(routeMap);
     }
+    clearConnectorsLeaflet();
     if (routeLayer) routeMap.removeLayer(routeLayer);
     routeLayer = L.layerGroup().addTo(routeMap);
 
@@ -1398,20 +1647,26 @@
       var color = busColor(i, drivers);
       L.polyline(bus.route.latlngs, { color: color, weight: 4, opacity: 0.85 }).addTo(routeLayer);
 
-      // Har bir o'quvchining uy joylashuvi — kichik, bosilganda ma'lumot.
+      // Har bir o'quvchining uy joylashuvi — kichik, bosilganda ma'lumot +
+      // shu o'quvchini avtobusdan chiqarib tashlash tugmasi.
       bus.order.forEach(function (s) {
         s.students.forEach(function (st) {
           if (st.lat == null) return;
           L.circleMarker([st.lat, st.lng], { radius: 4, color: color, fillColor: "#fff", fillOpacity: 0.9, weight: 2 })
-            .bindPopup("<b>" + esc(st.ism) + " " + esc(st.familiya) + "</b><br>" + esc(st.sinf) + (st.telefon ? "<br>" + esc(st.telefon) : ""))
+            .bindPopup(
+              "<b>" + esc(st.ism) + " " + esc(st.familiya) + "</b><br>" + esc(st.sinf) + (st.telefon ? "<br>" + esc(st.telefon) : "") +
+              '<br><button type="button" class="map-remove-student-btn" data-id="' + esc(st.id) + '" style="margin-top:6px;">❌ Avtobusdan chiqarib tashlash</button>'
+            )
             .addTo(routeLayer);
         });
       });
 
       // Bekat (yig'ilish nuqtasi) belgilari — birinchisi (eng uzoq, boshlash
       // nuqtasi) alohida bayroqcha bilan, qolganlari rangli, SURISH mumkin.
+      // Bekat ustiga BOSILSA (drag emas, click) — shu bekatga qaysi
+      // o'quvchilar biriktirilgani xaritada chiziq bilan ko'rsatiladi.
       bus.order.forEach(function (s, idx) {
-        var names = s.students.map(function (st) { return esc(st.ism + " " + st.familiya); }).join("<br>");
+        var names = s.students.map(function (st) { return esc(st.ism + " " + st.familiya) + " — " + esc(st.sinf); }).join("<br>");
         var label = (idx === 0 ? "🚩 Boshlash nuqtasi — " : "") + "<b>Bekat " + (idx + 1) + "</b><br>" + names;
         var marker;
         if (idx === 0) {
@@ -1432,18 +1687,24 @@
         }
         marker.on("dragend", function () {
           var ll = marker.getLatLng();
-          persistStopMove(s, ll.lat, ll.lng);
+          persistStopMove(s, ll.lat, ll.lng, i);
         });
+        marker.on("click", function () { highlightStopStudentsLeaflet(s, color); });
         marker.addTo(routeLayer);
       });
 
       // Admin "✏️ Yo'lni qo'lda chizish" rejimida qo'shgan qo'shimcha
       // nuqtalar — bular "bekat" emas (o'quvchi biriktirilmagan), faqat
       // OSRM'ga yo'l shu nuqtalar orqali o'tsin deb ko'rsatiladigan
-      // qo'shimcha yo'l nuqtalari.
-      (bus.manualViaPoints || []).forEach(function (vp) {
+      // qo'shimcha yo'l nuqtalari. Har biri alohida O'CHIRILISHI mumkin
+      // ("blokni o'chirish") — hammasini birdan tozalash tugmasi ham
+      // pastda (bus-card ichida) alohida turibdi.
+      (bus.manualViaPoints || []).forEach(function (vp, vpIdx) {
         L.circleMarker([vp.lat, vp.lng], { radius: 5, color: "#111", fillColor: "#fff200", fillOpacity: 0.95, weight: 2 })
-          .bindPopup("✏️ Qo'lda qo'shilgan yo'l nuqtasi")
+          .bindPopup(
+            "✏️ Qo'lda qo'shilgan yo'l nuqtasi<br>" +
+            '<button type="button" class="map-remove-via-btn" data-bus="' + i + '" data-idx="' + vpIdx + '" style="margin-top:6px;">🗑 Shu nuqtani o\'chirish</button>'
+          )
           .addTo(routeLayer);
       });
     });
@@ -1528,6 +1789,28 @@
     gMap.controls[gmaps.ControlPosition.TOP_LEFT].push(box);
   }
 
+  // Xaritaning o'zida turadigan ✏️ (qo'lda chizish) va ➕ (bekat qo'shish)
+  // belgilari — Leaflet versiyasidagi LeafletModeControl'ning Google Maps
+  // ekvivalenti. Avvalgi variantda bular FAQAT tepadagi tugmalar edi.
+  function addGMapModeControls(gmaps) {
+    if (document.getElementById("gmap-pencil-control")) return;
+    function makeBox(id, emoji, title, onClick) {
+      var box = document.createElement("div");
+      box.id = id;
+      box.title = title;
+      box.style.cssText = "background:#fff;width:36px;height:36px;margin:10px 10px 0;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.3);font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;";
+      box.textContent = emoji;
+      box.addEventListener("click", onClick);
+      gMap.controls[gmaps.ControlPosition.TOP_LEFT].push(box);
+    }
+    makeBox("gmap-pencil-control", "✏️", "Yo'lni qo'lda chizish: yoqilgach, avval yuqoridan bitta avtobus tanlang, so'ng xaritada bosib qo'shimcha yo'l nuqtalarini qo'shing — yo'l shu nuqtalar orqali, haqiqiy ko'chalar bo'ylab qayta chiziladi.", function () {
+      document.getElementById("btn-draw-mode").click();
+    });
+    makeBox("gmap-plus-control", "➕", "Yangi bekat qo'shish: yoqilgach, xaritada bosib yangi bekat yarating.", function () {
+      document.getElementById("btn-add-bekat-mode").click();
+    });
+  }
+
   function drawRouteMapGoogle(result, drivers, focusIndex) {
     loadGoogleMaps()
       .then(function (gmaps) {
@@ -1545,6 +1828,7 @@
           // Bicycling) qatlam tugmachalari. Shu yerda xatolik chiqsa ham,
           // asosiy xarita (marshrutlar, bekatlar) ko'rsatilishda davom etsin.
           try { addGMapLayerToggle(gmaps); } catch (e) { console.error("Google Maps: qatlam tugmachalarini qo'shishda xatolik (xarita o'zi ishlayveradi):", e); }
+          try { addGMapModeControls(gmaps); } catch (e) { console.error("Google Maps: ✏️/➕ belgilarini qo'shishda xatolik (xarita o'zi ishlayveradi):", e); }
           // Xuddi Leaflet versiyasidagidek — "Yangi bekat qo'shish" va
           // "Qo'lda chizish" rejimlari shu bitta click orqali ishlaydi.
           gMap.addListener("click", function (e) {
@@ -1554,6 +1838,7 @@
         }
         gMapOverlays.forEach(function (o) { o.setMap(null); });
         gMapOverlays = [];
+        clearConnectorsGoogle();
 
         var bounds = new gmaps.LatLngBounds();
 
@@ -1587,7 +1872,10 @@
                 icon: { path: gmaps.SymbolPath.CIRCLE, scale: 5, fillColor: "#fff", fillOpacity: 0.9, strokeColor: color, strokeWeight: 2 },
               });
               m.addListener("click", function () {
-                gMapInfoWindow.setContent("<b>" + esc(st.ism) + " " + esc(st.familiya) + "</b><br>" + esc(st.sinf) + (st.telefon ? "<br>" + esc(st.telefon) : ""));
+                gMapInfoWindow.setContent(
+                  "<b>" + esc(st.ism) + " " + esc(st.familiya) + "</b><br>" + esc(st.sinf) + (st.telefon ? "<br>" + esc(st.telefon) : "") +
+                  '<br><button type="button" class="map-remove-student-btn" data-id="' + esc(st.id) + '" style="margin-top:6px;">❌ Avtobusdan chiqarib tashlash</button>'
+                );
                 gMapInfoWindow.open(gMap, m);
               });
               gMapOverlays.push(m);
@@ -1595,7 +1883,7 @@
           });
 
           bus.order.forEach(function (s, idx) {
-            var names = s.students.map(function (st) { return esc(st.ism + " " + st.familiya); }).join("<br>");
+            var names = s.students.map(function (st) { return esc(st.ism + " " + st.familiya) + " — " + esc(st.sinf); }).join("<br>");
             var label = (idx === 0 ? "🚩 Boshlash nuqtasi — " : "") + "<b>Bekat " + (idx + 1) + "</b><br>" + names;
             var icon =
               idx === 0
@@ -1611,21 +1899,29 @@
             marker.addListener("click", function () {
               gMapInfoWindow.setContent(label);
               gMapInfoWindow.open(gMap, marker);
+              highlightStopStudentsGoogle(s, color, gmaps);
             });
             marker.addListener("dragend", function () {
               var pos = marker.getPosition();
-              persistStopMove(s, pos.lat(), pos.lng());
+              persistStopMove(s, pos.lat(), pos.lng(), i);
             });
             gMapOverlays.push(marker);
             bounds.extend(marker.getPosition());
           });
 
-          (bus.manualViaPoints || []).forEach(function (vp) {
+          (bus.manualViaPoints || []).forEach(function (vp, vpIdx) {
             var vm = new gmaps.Marker({
               position: { lat: vp.lat, lng: vp.lng },
               map: gMap,
               icon: gIcon('<circle cx="8" cy="8" r="7" fill="#fff200" stroke="#111" stroke-width="1.5"/>', 16, 16, 8, 8),
               title: "Qo'lda qo'shilgan yo'l nuqtasi",
+            });
+            vm.addListener("click", function () {
+              gMapInfoWindow.setContent(
+                "✏️ Qo'lda qo'shilgan yo'l nuqtasi<br>" +
+                '<button type="button" class="map-remove-via-btn" data-bus="' + i + '" data-idx="' + vpIdx + '" style="margin-top:6px;">🗑 Shu nuqtani o\'chirish</button>'
+              );
+              gMapInfoWindow.open(gMap, vm);
             });
             gMapOverlays.push(vm);
             bounds.extend(vm.getPosition());

@@ -175,7 +175,7 @@
           <input type="text" inputmode="numeric" id="rt-kmcap" value="0" placeholder="0 = cheklovsiz">
         </div>
       </div>
-      <p class="hint" style="margin:2px 0 0;">Har bir o'quvchining qaysi kunlari avtobusdan foydalanishi (kelish/ketish alohida) Ro'yxat bo'limida ✎ orqali belgilanadi — kundalik o'quvchilar uchun standart holat "har kuni, ikkala tomon ham". Km chegarasi qat'iy emas — undan oshgan avtobus ogohlantirish bilan ko'rsatiladi (bepul yo'nalish xizmati yo'l turini tanlashga imkon bermaydi).</p>
+      <p class="hint" style="margin:2px 0 0;">Har bir o'quvchining qaysi kunlari avtobusdan foydalanishi (kelish/ketish alohida) Ro'yxat bo'limida ✎ orqali belgilanadi — kundalik o'quvchilar uchun standart holat "har kuni, ikkala tomon ham". Km chegarasi endi QAT'IY ishlaydi: shu chegaradan oshadigan bekat(lar) avtobusdan avtomatik chiqarilib, boshqa bo'sh avtobusga sig'diriladi (imkon bo'lsa), sig'masa pastda alohida ro'yxatda ko'rsatiladi.</p>
       <button type="button" class="btn-primary" id="btn-compute" style="margin-top:18px;">Yo'nalishlarni hisoblash</button>
       <div class="form-error" id="route-msg"></div>
     </div>
@@ -192,10 +192,23 @@
       <div id="unassigned-list"></div>
     </div>
 
+    <div class="card" id="kmcap-unassigned-card" hidden>
+      <h2>📏 Km chegarasi tufayli chiqarilgan bolalar</h2>
+      <p class="hint">Bu bekatlar o'zining avtobusini "Avtobus uchun maksimal km" chegarasidan oshirib yuborgani uchun chiqarildi va boshqa avtobusga ham (chegaradan oshmasdan) sig'dirib bo'lmadi. Qaysi avtobusga qo'lda qo'shishni tanlang (u avtobus km chegarasidan oshishi mumkin — bu qo'lda tanlangani uchun ogohlantirish bilan ko'rsatiladi).</p>
+      <div id="kmcap-unassigned-list"></div>
+    </div>
+
+    <div class="card" id="manual-removed-card" hidden>
+      <h2>🚫 Xaritadan avtobusdan chiqarib tashlangan bolalar</h2>
+      <p class="hint">Bu bolalar xaritada "❌ Avtobusdan chiqarib tashlash" tugmasi bosilib, qo'lda chiqarib tashlangan — hech qaysi avtobusga qo'yilmaydi. Qaytarish uchun "↩ Qaytarish" tugmasini bosing (avtobus qayta hisoblanadi).</p>
+      <div id="manual-removed-list"></div>
+    </div>
+
     <div class="card" id="route-results" hidden>
       <div class="toolbar">
         <h2 style="margin:0;">Natija</h2>
         <div class="row2" style="flex:none;flex-wrap:wrap;">
+          <span id="route-view-color-dot" style="display:inline-block;width:14px;height:14px;border-radius:50%;border:1.5px solid #fff;box-shadow:0 0 0 1px var(--border,#ccc);flex:none;"></span>
           <select id="route-view-select" style="width:auto;padding:8px 10px;"></select>
           <button type="button" class="btn-ghost" id="btn-add-bekat-mode">➕ Yangi bekat qo'shish</button>
           <button type="button" class="btn-ghost" id="btn-draw-mode">✏️ Yo'lni qo'lda chizish</button>
@@ -204,7 +217,7 @@
           <button type="button" class="btn-ghost" id="btn-pdf-all">📄 Hammasi PDF</button>
         </div>
       </div>
-      <p class="hint" style="margin-top:0;">Qulflash — hozir tayinlangan har bir bolani o'z avtobusiga "mahkamlaydi", shunda keyinroq 1-2 ta yangi bola qo'shilsa, avvalgi taqsimot buzilmaydi (yangi bolalar bo'sh joyga qo'shiladi). "➕ Yangi bekat qo'shish" — xaritadan nuqta bosib yangi bekat yaratish va o'quvchilarni shu bekatga biriktirish. "✏️ Yo'lni qo'lda chizish" — avval yuqoridagi ro'yxatdan bitta avtobusni tanlang, so'ng xaritada bosib avtobus shu nuqtalar orqali (haqiqiy yo'l bo'ylab, OSRM orqali qayta hisoblanadi) yursin deb belgilang.</p>
+      <p class="hint" style="margin-top:0;">Qulflash — hozir tayinlangan har bir bolani o'z avtobusiga "mahkamlaydi", shunda keyinroq 1-2 ta yangi bola qo'shilsa, avvalgi taqsimot buzilmaydi (yangi bolalar bo'sh joyga qo'shiladi). "➕ Yangi bekat qo'shish" — xaritadan nuqta bosib yangi bekat yaratish va o'quvchilarni shu bekatga biriktirish. Xaritaning yuqori chap burchagidagi ✏️ qalam belgisi (yoki shu yerdagi "✏️ Yo'lni qo'lda chizish" tugmasi) — yoqilgach, avval yuqoridagi ro'yxatdan bitta avtobusni tanlagan bo'lishingiz kerak, so'ng xaritada bosib qo'shimcha yo'l nuqtalari qo'yasiz — avtobus shu nuqtalar orqali, HAQIQIY ko'chalar bo'ylab (OSRM orqali) yuradi. Qo'lda qo'yilgan sariq nuqta ustiga bossangiz, uni birma-bir o'chirish (segmentni bekor qilish) mumkin. Bekatga (raqamli doira belgi) bossangiz, unga qaysi o'quvchilar biriktirilgani chiziq bilan ko'rsatiladi. O'quvchi (kichik nuqta) ustiga bossangiz, uni shu avtobusdan chiqarib tashlash tugmasi ham chiqadi.</p>
       <div id="manual-bekat-picker" style="margin:10px 0;" hidden>
         <div class="card" style="background:var(--bg-soft,#f4f6f9);">
           <p class="hint" style="margin:0 0 8px;">Tanlangan nuqta: <span id="manual-bekat-coord"></span></p>

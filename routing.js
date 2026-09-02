@@ -290,6 +290,31 @@ function suggestDeparture(durationMin, stopCount, arrivalHHMM) {
 
 var DWELL_MIN_PER_STOP = 1;
 
+// Bitta bekatlar ro'yxatidan (bir avtobus uchun) tartib + OSRM yo'lini
+// hisoblaydi — bir necha joyda (oddiy hisoblash, km-chegara qisqartirish,
+// qayta joylashtirish urinishi) qayta ishlatiladi.
+function computeOrderedRoute_(stopList, school, direction) {
+  var kelishOrder = orderStops(stopList, school); // eng uzoqdan -> maktabga yaqinlashib
+  var ordered, points;
+  if (direction === "ketish") {
+    // Ketish (maktabdan tarqalish): yo'nalish teskarisiga aylantiriladi —
+    // avtobus maktabdan chiqib, eng yaqin bekatdan boshlab, eng uzog'ida
+    // tugatadi. Maktabga qaytish hisoblanmaydi (bolalar tushib ketadi).
+    ordered = kelishOrder.slice().reverse();
+    points = [school].concat(ordered.map(function (s) { return { lat: s.lat, lng: s.lng }; }));
+  } else {
+    ordered = kelishOrder;
+    points = [school].concat(ordered.map(function (s) { return { lat: s.lat, lng: s.lng }; })).concat([school]);
+  }
+  return fetchOsrmRoute(points).then(function (route) { return { ordered: ordered, route: route }; });
+}
+
+function finalizeBusTimes_(res, direction, arrivalHHMM, departureFromSchool) {
+  var dep = direction === "ketish" ? departureFromSchool : suggestDeparture(res.route.durationMin, res.ordered.length, arrivalHHMM);
+  var stopTimes = computeStopClockTimes(res.route.legs || [], res.ordered.length, dep, DWELL_MIN_PER_STOP);
+  return { stopTimes: stopTimes, departure: dep };
+}
+
 function computeRoutes(entries, school, busCount, maxWalkM, capacities, opts) {
   opts = opts || {};
   var arrivalHHMM = opts.arrivalHHMM || "08:20";
@@ -304,11 +329,27 @@ function computeRoutes(entries, school, busCount, maxWalkM, capacities, opts) {
     e._forcedBusIndex = e.avtobusOverride ? resolveOverrideIndex(e.avtobusOverride) : null;
   });
 
+  // Admin xaritada "❌ Avtobusdan chiqarib tashlash" tugmasi bosgan
+  // o'quvchilar (avtobusOverride = "0" => resolveOverrideIndex "-1"
+  // qaytaradi) — bular hech qanday avtobusga ham, "piyoda" ro'yxatiga ham
+  // TUSHMAYDI, alohida ro'yxatda (manuallyRemoved) ko'rsatiladi. Ma'lumotlari
+  // to'liq saqlanadi — faqat shu hisoblashda avtobusga qo'yilmaydi.
+  var manuallyRemoved = [];
+  var candidateEntries = [];
+  withLoc.forEach(function (e) {
+    if (e._forcedBusIndex === -1) {
+      var mp = effectiveStopPoint(e);
+      manuallyRemoved.push({ lat: mp.lat, lng: mp.lng, students: [e] });
+    } else {
+      candidateEntries.push(e);
+    }
+  });
+
   // Maktabga juda yaqin (piyoda radiusi ichida) bolalarni avtobus
   // hisobidan chiqarib, alohida "piyoda tavsiya etiladi" ro'yxatiga olamiz.
   var walkers = [];
   var riders = [];
-  withLoc.forEach(function (e) {
+  candidateEntries.forEach(function (e) {
     var p = effectiveStopPoint(e);
     var distM = estimateWalkMeters(haversineKm(school.lat, school.lng, p.lat, p.lng));
     if (schoolWalkRadiusM > 0 && distM <= schoolWalkRadiusM && e._forcedBusIndex == null) {
@@ -321,33 +362,120 @@ function computeRoutes(entries, school, busCount, maxWalkM, capacities, opts) {
   riders.sort(function (a, b) { return a.lat - b.lat || a.lng - b.lng; });
   var stops = buildStops(riders, maxWalkM);
   var assign = assignStopsToBuses(stops, busCount, capacities, school);
-  var busPromises = assign.buses.map(function (bus) {
-    if (!bus.stops.length) return Promise.resolve({ stops: [], count: 0, order: [], route: null, stopTimes: [], departure: null });
-    var kelishOrder = orderStops(bus.stops, school); // eng uzoqdan -> maktabga yaqinlashib
-    var ordered, points;
-    if (direction === "ketish") {
-      // Ketish (maktabdan tarqalish): yo'nalish teskarisiga aylantiriladi —
-      // avtobus maktabdan chiqib, eng yaqin bekatdan boshlab, eng uzog'ida
-      // tugatadi. Maktabga qaytish hisoblanmaydi (bolalar tushib ketadi).
-      ordered = kelishOrder.slice().reverse();
-      points = [school].concat(ordered.map(function (s) { return { lat: s.lat, lng: s.lng }; }));
-    } else {
-      ordered = kelishOrder;
-      points = [school].concat(ordered.map(function (s) { return { lat: s.lat, lng: s.lng }; })).concat([school]);
-    }
-    return fetchOsrmRoute(points).then(function (route) {
-      var dep = direction === "ketish" ? departureFromSchool : suggestDeparture(route.durationMin, ordered.length, arrivalHHMM);
-      var stopTimes = computeStopClockTimes(route.legs || [], ordered.length, dep, DWELL_MIN_PER_STOP);
-      var overKmCap = kmCapPerBus > 0 && route.distanceKm > kmCapPerBus;
-      return { stops: bus.stops, count: bus.count, order: ordered, route: route, stopTimes: stopTimes, departure: dep, direction: direction, overKmCap: overKmCap };
+
+  // ---- Km chegarasi O'CHIRILGAN (standart holat): oldingi, tez (parallel)
+  // yo'l bilan hisoblaymiz — xatti-harakat oldingi versiyalar bilan bir xil.
+  if (!(kmCapPerBus > 0)) {
+    var busPromises = assign.buses.map(function (bus) {
+      if (!bus.stops.length) return Promise.resolve({ lat: bus.lat, lng: bus.lng, stops: [], count: 0, order: [], route: null, stopTimes: [], departure: null, direction: direction, overKmCap: false });
+      return computeOrderedRoute_(bus.stops, school, direction).then(function (res) {
+        var f = finalizeBusTimes_(res, direction, arrivalHHMM, departureFromSchool);
+        return { lat: bus.lat, lng: bus.lng, stops: bus.stops, count: bus.count, order: res.ordered, route: res.route, stopTimes: f.stopTimes, departure: f.departure, direction: direction, overKmCap: false };
+      });
+    });
+    return Promise.all(busPromises).then(function (buses) {
+      return {
+        buses: buses,
+        unassigned: assign.unassigned,
+        kmCapUnassigned: [],
+        manuallyRemoved: manuallyRemoved,
+        unassignedCount: entries.length - withLoc.length,
+        walkers: walkers,
+      };
+    });
+  }
+
+  // ---- Km chegarasi YOQILGAN: har bir avtobusni KETMA-KET (parallel emas)
+  // hisoblaymiz, chunki chegaradan oshgan bekatni shu avtobusdan olib,
+  // boshqasiga ko'chirish mumkinligini bilish uchun oldingi avtobuslarning
+  // YAKUNIY holati kerak. Chegaradan oshsa — eng UZOQ (maktabdan) va
+  // "qat'iy belgilanmagan" bekat avtobusdan olinib, yo'l qayta hisoblanadi;
+  // bu chegaraga sig'guncha yoki faqat qat'iy belgilangan bekatlar
+  // qolguncha takrorlanadi.
+  var kmCapRemoved = [];
+  var busesFinal = new Array(assign.buses.length);
+  var chain = Promise.resolve();
+  assign.buses.forEach(function (bus, busIdx) {
+    chain = chain.then(function () {
+      if (!bus.stops.length) {
+        busesFinal[busIdx] = { lat: bus.lat, lng: bus.lng, stops: [], count: 0, order: [], route: null, stopTimes: [], departure: null, direction: direction, overKmCap: false };
+        return;
+      }
+      function tryReduce() {
+        return computeOrderedRoute_(bus.stops, school, direction).then(function (res) {
+          var canReduce =
+            res.route.distanceKm > kmCapPerBus &&
+            bus.stops.length > 1 &&
+            bus.stops.some(function (s) { return s.forcedBusIndex == null; });
+          if (canReduce) {
+            var removable = bus.stops.filter(function (s) { return s.forcedBusIndex == null; });
+            var worst = removable.reduce(function (a, b) {
+              return haversineKm(school.lat, school.lng, b.lat, b.lng) > haversineKm(school.lat, school.lng, a.lat, a.lng) ? b : a;
+            });
+            bus.stops = bus.stops.filter(function (s) { return s !== worst; });
+            bus.count -= worst.students.length;
+            kmCapRemoved.push(worst);
+            return tryReduce();
+          }
+          return res;
+        });
+      }
+      return tryReduce().then(function (res) {
+        var f = finalizeBusTimes_(res, direction, arrivalHHMM, departureFromSchool);
+        var overKmCap = res.route.distanceKm > kmCapPerBus; // faqat bitta bekat qolib, baribir oshib ketsa (kamaytirib bo'lmaydi)
+        busesFinal[busIdx] = { lat: bus.lat, lng: bus.lng, stops: bus.stops, count: bus.count, order: res.ordered, route: res.route, stopTimes: f.stopTimes, departure: f.departure, direction: direction, overKmCap: overKmCap };
+      });
     });
   });
-  return Promise.all(busPromises).then(function (buses) {
-    return {
-      buses: buses,
-      unassigned: assign.unassigned,
-      unassignedCount: entries.length - withLoc.length,
-      walkers: walkers,
-    };
+
+  return chain.then(function () {
+    // Km chegarasi tufayli chiqarilgan bekatlarni endi BO'SH JOYI bor va
+    // (qo'shilgandan keyin ham) km chegarasidan oshmaydigan boshqa
+    // avtobusga qo'lda urinib ko'ramiz — topilmasa alohida ro'yxatda qoladi.
+    var kmCapUnassigned = [];
+    var placeChain = Promise.resolve();
+    kmCapRemoved.forEach(function (s) {
+      placeChain = placeChain.then(function () {
+        var n = s.students.length;
+        var order = busesFinal
+          .map(function (b, i) { return i; })
+          .filter(function (i) { return busesFinal[i].count + n <= (capacities[i] || DEFAULT_BUS_CAPACITY); })
+          .sort(function (i, j) {
+            var bi = busesFinal[i], bj = busesFinal[j];
+            return (
+              haversineKm(bi.lat != null ? bi.lat : school.lat, bi.lng != null ? bi.lng : school.lng, s.lat, s.lng) -
+              haversineKm(bj.lat != null ? bj.lat : school.lat, bj.lng != null ? bj.lng : school.lng, s.lat, s.lng)
+            );
+          });
+        function tryCandidate(idx) {
+          if (idx >= order.length) { kmCapUnassigned.push(s); return Promise.resolve(); }
+          var bi = order[idx];
+          var trialStops = (busesFinal[bi].stops || []).concat([s]);
+          return computeOrderedRoute_(trialStops, school, direction).then(function (res) {
+            if (res.route.distanceKm > kmCapPerBus) return tryCandidate(idx + 1);
+            var b = busesFinal[bi];
+            var f = finalizeBusTimes_(res, direction, arrivalHHMM, departureFromSchool);
+            b.stops = trialStops;
+            b.count += n;
+            b.order = res.ordered;
+            b.route = res.route;
+            b.stopTimes = f.stopTimes;
+            b.departure = f.departure;
+            b.overKmCap = false;
+          });
+        }
+        return tryCandidate(0);
+      });
+    });
+    return placeChain.then(function () {
+      return {
+        buses: busesFinal,
+        unassigned: assign.unassigned,
+        kmCapUnassigned: kmCapUnassigned,
+        manuallyRemoved: manuallyRemoved,
+        unassignedCount: entries.length - withLoc.length,
+        walkers: walkers,
+      };
+    });
   });
 }
