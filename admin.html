@@ -31,9 +31,7 @@
   <div class="tabs" id="tabs">
     <button type="button" class="tab-btn active" data-tab="royxat">Ro'yxat</button>
     <button type="button" class="tab-btn" data-tab="sinflar">Sinflar</button>
-    <button type="button" class="tab-btn" data-tab="roster">O'quvchilar ro'yxati</button>
     <button type="button" class="tab-btn" data-tab="haydovchilar">Haydovchilar</button>
-    <button type="button" class="tab-btn" data-tab="kuratorlar">Kuratorlar</button>
     <button type="button" class="tab-btn" data-tab="yonalishlar">Yo'nalishlar</button>
     <button type="button" class="tab-btn" data-tab="sozlamalar">Sozlamalar</button>
   </div>
@@ -73,6 +71,17 @@
         </table>
       </div>
     </div>
+
+    <div class="card" id="excluded-card" hidden>
+      <h2>🚫 Xaritadan chiqarilgan o'quvchilar</h2>
+      <p class="hint">Bu o'quvchilar noto'g'ri joylashuv belgilagani uchun xaritadan/yo'nalish hisoblashdan vaqtincha chiqarilgan — ma'lumotlari bazada saqlanmoqda, o'chirilmagan. Ota-onasi bilan bog'lanib, joylashuvni to'g'irlagach, "Qaytarish" tugmasini bosing.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Ism</th><th>Familiya</th><th>Sinf</th><th>Telefon</th><th></th></tr></thead>
+          <tbody id="excluded-rows"></tbody>
+        </table>
+      </div>
+    </div>
     <p class="footer-note">Manzilni aniqlash OpenStreetMap (Nominatim) orqali, so'rov bo'yicha amalga oshiriladi.</p>
   </div>
 
@@ -80,10 +89,10 @@
   <div class="tab-panel" id="tab-sinflar" hidden>
     <div class="card">
       <h2>Sinflar ro'yxati</h2>
-      <p class="hint">Ro'yxatdan o'tish formasidagi dropdown shu yerdan to'ldiriladi. "Jami o'quvchi" — sinfdagi barcha bolalar soni, "Avtobusdan foydalanadi" — shulardan nechtasi avtobusga yoziladi (piyoda yoki ota-onasi olib boradiganlarni chiqarib tashlab). Ro'yxatdan o'tish % shu ikkinchi songa nisbatan hisoblanadi.</p>
+      <p class="hint">Ro'yxatdan o'tish formasidagi dropdown shu yerdan to'ldiriladi. "Jami o'quvchi" — sinfdagi barcha bolalar soni, "Avtobusdan foydalanadi" — shulardan nechtasi avtobusga yoziladi (piyoda yoki ota-onasi olib boradiganlarni chiqarib tashlab). Ro'yxatdan o'tish % shu ikkinchi songa nisbatan hisoblanadi. Har bir sinf qatorida kuratorni biriktirish va rasmiy o'quvchilar ro'yxatini kiritish ham shu yerdan amalga oshiriladi.</p>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Sinf</th><th>Jami o'quvchi</th><th>Avtobusdan foydalanadi</th><th></th></tr></thead>
+          <thead><tr><th>Sinf</th><th>Jami o'quvchi</th><th>Avtobusdan foydalanadi</th><th>Kurator</th><th>O'quvchilar ro'yxati</th><th></th></tr></thead>
           <tbody id="classes-rows"></tbody>
         </table>
       </div>
@@ -92,26 +101,7 @@
         <button type="button" class="btn-primary" id="btn-save-classes" style="margin-top:0;">Saqlash</button>
       </div>
       <div class="form-error" id="classes-msg"></div>
-    </div>
-  </div>
-
-  <!-- ===================== ROSTER ===================== -->
-  <div class="tab-panel" id="tab-roster" hidden>
-    <div class="card">
-      <h2>O'quvchilar ro'yxati</h2>
-      <p class="hint">Bu yerga kiritilgan ism-familiyalar ro'yxatdan o'tish formasida taklif (autocomplete) sifatida chiqadi.</p>
-      <label>To'liq ro'yxat</label>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Sinf</th><th>Ism</th><th>Familiya</th><th></th></tr></thead>
-          <tbody id="roster-rows"></tbody>
-        </table>
-      </div>
-      <div class="row2" style="margin-top:14px;">
-        <button type="button" class="btn-ghost" id="btn-add-roster-row">+ Qator qo'shish</button>
-        <button type="button" class="btn-primary" id="btn-save-roster" style="margin-top:0;">Saqlash</button>
-      </div>
-      <div class="form-error" id="roster-msg"></div>
+      <p class="hint" style="margin-top:10px;">Diqqat: kurator/ro'yxat tugmalari sinf nomi bo'yicha ishlaydi — avval "Saqlash" tugmasi bilan sinf nomini saqlab oling, so'ng kurator/ro'yxatni biriktiring.</p>
     </div>
   </div>
 
@@ -131,26 +121,6 @@
         <button type="button" class="btn-primary" id="btn-save-drivers" style="margin-top:0;">Saqlash</button>
       </div>
       <div class="form-error" id="drivers-msg"></div>
-    </div>
-  </div>
-
-  <!-- ===================== KURATORLAR ===================== -->
-  <div class="tab-panel" id="tab-kuratorlar" hidden>
-    <div class="card">
-      <h2>Sinf kuratorlari</h2>
-      <p class="hint">Har bir sinfga bitta ustoz (kurator) biriktiring. Kurator Telegram botga ulangach, faqat o'ziga biriktirilgan sinf ma'lumotini va hisobotini ko'radi. Bu qatorni o'chirsangiz, o'sha kuratorga hisobot yuborilishi darhol to'xtaydi.</p>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Sinf</th><th>Ustoz ismi</th><th>Telefon</th><th>Bot holati</th><th></th></tr></thead>
-          <tbody id="kurators-rows"></tbody>
-        </table>
-      </div>
-      <div class="row2" style="margin-top:14px;">
-        <button type="button" class="btn-ghost" id="btn-add-kurator">+ Kurator qo'shish</button>
-        <button type="button" class="btn-primary" id="btn-save-kurators" style="margin-top:0;">Saqlash</button>
-      </div>
-      <div class="form-error" id="kurators-msg"></div>
-      <p class="hint" style="margin-top:16px;">Botga ulanish uchun: saqlangach paydo bo'lgan havolani (yoki kodni) kuratorga yuboring — u shu havolani ochib, botda "Start" bosishi kifoya.</p>
     </div>
   </div>
 
@@ -210,21 +180,6 @@
       <div class="form-error" id="route-msg"></div>
     </div>
 
-    <div class="card">
-      <div class="toolbar">
-        <h2 style="margin:0;">Bekatni qo'lda belgilash</h2>
-      </div>
-      <p class="hint">Avtomatik klasterlashda chalkashlik bo'lsa, shu yerda xaritadan aniq nuqta bosib yangi bekat yarating, so'ng qaysi o'quvchilar shu bekatdan chiqishini tanlang — ularning joylashuvi shu nuqtaga o'rnatiladi.</p>
-      <div id="map-manual-bekat"></div>
-      <div id="manual-bekat-picker" style="margin-top:12px;" hidden>
-        <p class="hint" style="margin:0 0 8px;">Tanlangan nuqta: <span id="manual-bekat-coord"></span></p>
-        <input type="text" id="manual-bekat-search" placeholder="O'quvchi ism-familiyasini qidirish…" style="margin-bottom:8px;">
-        <div id="manual-bekat-list" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:9px;padding:8px;"></div>
-        <button type="button" class="btn-primary" id="btn-manual-bekat-save" style="margin-top:10px;">Tanlanganlarni shu bekatga biriktirish</button>
-        <div class="form-error" id="manual-bekat-msg"></div>
-      </div>
-    </div>
-
     <div class="card" id="walkers-card" hidden>
       <h2>🚶 Piyoda boradigan o'quvchilar</h2>
       <p class="hint">Maktabga belgilangan piyoda radiusidan yaqin joyda turishadi — avtobusga qo'shilmadi.</p>
@@ -242,15 +197,27 @@
         <h2 style="margin:0;">Natija</h2>
         <div class="row2" style="flex:none;flex-wrap:wrap;">
           <select id="route-view-select" style="width:auto;padding:8px 10px;"></select>
+          <button type="button" class="btn-ghost" id="btn-add-bekat-mode">➕ Yangi bekat qo'shish</button>
+          <button type="button" class="btn-ghost" id="btn-draw-mode">✏️ Yo'lni qo'lda chizish</button>
           <button type="button" class="btn-ghost" id="btn-lock-assignment">🔒 Ushbu taqsimotni qulflash</button>
           <button type="button" class="btn-ghost" id="btn-notify-kurators">📨 Kuratorlarga xabar yuborish</button>
           <button type="button" class="btn-ghost" id="btn-pdf-all">📄 Hammasi PDF</button>
         </div>
       </div>
-      <p class="hint" style="margin-top:0;">Qulflash — hozir tayinlangan har bir bolani o'z avtobusiga "mahkamlaydi", shunda keyinroq 1-2 ta yangi bola qo'shilsa, avvalgi taqsimot buzilmaydi (yangi bolalar bo'sh joyga qo'shiladi).</p>
+      <p class="hint" style="margin-top:0;">Qulflash — hozir tayinlangan har bir bolani o'z avtobusiga "mahkamlaydi", shunda keyinroq 1-2 ta yangi bola qo'shilsa, avvalgi taqsimot buzilmaydi (yangi bolalar bo'sh joyga qo'shiladi). "➕ Yangi bekat qo'shish" — xaritadan nuqta bosib yangi bekat yaratish va o'quvchilarni shu bekatga biriktirish. "✏️ Yo'lni qo'lda chizish" — avval yuqoridagi ro'yxatdan bitta avtobusni tanlang, so'ng xaritada bosib avtobus shu nuqtalar orqali (haqiqiy yo'l bo'ylab, OSRM orqali qayta hisoblanadi) yursin deb belgilang.</p>
+      <div id="manual-bekat-picker" style="margin:10px 0;" hidden>
+        <div class="card" style="background:var(--bg-soft,#f4f6f9);">
+          <p class="hint" style="margin:0 0 8px;">Tanlangan nuqta: <span id="manual-bekat-coord"></span></p>
+          <input type="text" id="manual-bekat-search" placeholder="O'quvchi ism-familiyasini qidirish…" style="margin-bottom:8px;">
+          <div id="manual-bekat-list" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:9px;padding:8px;"></div>
+          <button type="button" class="btn-primary" id="btn-manual-bekat-save" style="margin-top:10px;">Tanlanganlarni shu bekatga biriktirish</button>
+          <button type="button" class="btn-ghost" id="btn-manual-bekat-cancel" style="margin-top:10px;">Bekor qilish</button>
+          <div class="form-error" id="manual-bekat-msg"></div>
+        </div>
+      </div>
       <div id="map-routes"></div>
       <div id="street-names" style="margin-top:10px;"></div>
-      <p class="hint" style="margin-top:8px;">🚩 katta belgi — yo'nalish boshlanish nuqtasi (eng uzoq bekat). Bekat belgisini surib, chiqish nuqtasini qo'lda to'g'irlash mumkin. O'quvchi (kichik nuqta) ustiga bosilsa ma'lumotlari ochiladi.</p>
+      <p class="hint" style="margin-top:8px;">🚩 katta belgi — yo'nalish boshlanish nuqtasi (eng uzoq bekat). Bekat belgisini surib, chiqish nuqtasini qo'lda to'g'irlash mumkin. O'quvchi (kichik nuqta) ustiga bosilsa ma'lumotlari ochiladi. Har bir avtobus kartasidagi ↑/↓ tugmalari bilan bekatlar tartibini qo'lda o'zgartirish mumkin (yo'l OSRM orqali qayta hisoblanadi).</p>
       <div id="bus-summaries" style="margin-top:16px;"></div>
     </div>
   </div>
@@ -315,6 +282,13 @@
       <div id="entry-edit-body"></div>
     </div>
   </div>
+
+  <div id="class-manage-backdrop" class="modal-backdrop" hidden>
+    <div class="modal-card">
+      <button type="button" class="modal-close" id="class-manage-close">✕</button>
+      <div id="class-manage-body"></div>
+    </div>
+  </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -324,6 +298,7 @@
 <script src="config.js"></script>
 <script src="shared.js"></script>
 <script src="routing.js"></script>
+<script src="fonts.js"></script>
 <script src="admin.js"></script>
 </body>
 </html>

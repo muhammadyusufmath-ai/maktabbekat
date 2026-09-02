@@ -69,13 +69,26 @@ Admin panel manzili — asosiy havola oxiriga `admin.html` qo'shilgan holda.
 
 - **Ro'yxat** — umumiy son, har bir sinf uchun "reja"ga nisbatan to'lish
   foizi, to'liq ro'yxat (telefon, joylashuv, manzil), noto'g'ri yozuvni
-  o'chirish, CSV eksport.
+  o'chirish, CSV eksport. Har bir qatorda endi 🚫/↩ tugmasi ham bor —
+  joylashuvi noto'g'ri (masalan uzoq davlatda yoki dengiz o'rtasida)
+  belgilagan o'quvchini shu tugma bilan **xaritadan/yo'nalish
+  hisoblashdan vaqtincha chiqarib qo'yish** mumkin — ma'lumoti bazada
+  TO'LIQ saqlanadi, faqat marshrutga kiritilmaydi. Chiqarilganlar
+  pastdagi alohida "🚫 Xaritadan chiqarilgan o'quvchilar" jadvalida ham
+  ko'rinadi — ota-onasi bilan bog'lanib joylashuvni to'g'irlagach, "↩
+  Qaytarish" bilan qaytaring.
 - **Sinflar** — dropdown'da chiqadigan sinflar va har biriga "reja"
-  (kutilayotgan o'quvchilar soni) — qo'shish/tahrirlash/o'chirish/saqlash.
-- **O'quvchilar ro'yxati** — rasmiy ism-familiyalar (bitta-bitta yoki
-  "Sinf, Ism, Familiya" formatida ko'p qatorli tez qo'shish orqali).
-  Ro'yxatdan o'tish formasida shu ro'yxat asosida taklif (autocomplete)
-  chiqadi.
+  (kutilayotgan o'quvchilar soni). Endi shu yerning o'zida, har bir sinf
+  qatorida yana ikkita tugma bor: **Kurator** (shu sinfga ustoz
+  biriktirish — ism, ikkita telefon raqami — biri majburiy, ikkinchisi
+  ixtiyoriy — va Telegram bot havolasi/kodi) va **O'quvchilar ro'yxati**
+  (shu sinfning rasmiy ism-familiyalar ro'yxati — ro'yxatdan o'tish
+  formasidagi taklif/autocomplete va kurator hisobotidagi "hali
+  o'tmaganlar" ro'yxati uchun ishlatiladi). Avvalgi alohida "Kuratorlar"
+  va "O'quvchilar ro'yxati" bo'limlari endi shu yerga ko'chirildi — har
+  bir sinfni boshqarish uchun endi bitta joyga qarash kifoya. Diqqat:
+  bu tugmalar sinf NOMI bo'yicha ishlaydi — avval "Saqlash" bilan sinf
+  nomini saqlab, keyin kurator/ro'yxatni biriktiring.
 - **Haydovchilar** — har bir avtobus uchun raqami, haydovchi ismi,
   telefoni, rangi (xarita chizig'i shu rangda chiziladi) va sig'imi.
 - **Yo'nalishlar** — avval maktab joylashuvini xaritadan tanlang (bosing,
@@ -87,11 +100,20 @@ Admin panel manzili — asosiy havola oxiriga `admin.html` qo'shilgan holda.
   bolalar ro'yxati (agar radius kiritilgan bo'lsa), sig'may qolgan
   bolalar uchun qo'lda avtobus tanlash imkoniyati (agar bo'lsa), va har
   bir avtobus uchun xaritada chizilgan yo'l (🚩 — boshlash nuqtasi, har
-  bir o'quvchi uyi ham nuqta bilan ko'rinadi va bosilsa ma'lumoti
-  chiqadi, bekat belgisini surib chiqish nuqtasini to'g'irlash mumkin),
-  km, daqiqa, bola soni, chiqish vaqti va har bir bolaning taxminiy olib
-  ketilish vaqti, pastida esa shu avtobusdagi o'quvchilar ro'yxati (ustiga
-  bosilsa to'liq ma'lumot) va PDF yuklab olish tugmasi.
+  bir o'quvchi uyi ham nuqta bilan ko'rinadi va bosilsa ma'lumoti —
+  jumladan uydan bekatgacha piyoda taxminiy masofa — chiqadi, bekat
+  belgisini surib chiqish nuqtasini to'g'irlash mumkin), km, daqiqa, bola
+  soni, chiqish vaqti va har bir bolaning taxminiy olib ketilish vaqti,
+  pastida esa shu avtobusdagi o'quvchilar ro'yxati (ustiga bosilsa to'liq
+  ma'lumot), bekatlar tartibini ↑/↓ bilan qo'lda o'zgartirish imkoniyati
+  va PDF yuklab olish tugmasi. **"Natija" xaritasining o'zida** endi yana
+  ikkita tugma bor: **"➕ Yangi bekat qo'shish"** (xaritadan nuqta bosib
+  yangi bekat yaratish va o'quvchilarni shu bekatga biriktirish — avvalgi
+  alohida "Bekatni qo'lda belgilash" kartasi endi shu yerga ko'chirildi)
+  va **"✏️ Yo'lni qo'lda chizish"** (bitta avtobusni tanlab, xaritada
+  bosib qo'shimcha yo'l nuqtalarini belgilash — avtobus haqiqiy yo'l
+  bo'ylab, OSRM orqali, aynan shu nuqtalar orqali o'tadigan qilib qayta
+  hisoblanadi).
 
 ### Yo'nalish hisoblash qanday ishlaydi (va cheklovlari)
 
@@ -471,6 +493,92 @@ tuzatamiz.
 Hammasi avvalgidek — hech qanday eski ma'lumot o'chirilmadi. Yangi
 `Sozlamalar` kalitlari (`ShowNotYetNames`, `OverallPerClass`) va yangi
 JS validatsiyasi faqat qo'shimcha ravishda ishlaydi.
+
+---
+
+## YANGI TUZATISHLAR (4-bosqich yangilanish)
+
+Siz yuborgan skrinshotlar va so'rovlar asosida quyidagilar qo'shildi/tuzatildi:
+
+- **"Kuratorlar" va "O'quvchilar ro'yxati" endi alohida bo'limlar emas** —
+  ikkalasi ham **Sinflar** bo'limiga, har bir sinf qatoriga ko'chirildi
+  (yuqoridagi "Admin panelidan foydalanish" bo'limiga qarang). Kurator
+  endi ikkita telefon raqami bilan saqlanadi (biri majburiy, ikkinchisi
+  ixtiyoriy). Hech qanday mavjud kurator/bot-ulanish yoki o'quvchilar
+  ro'yxati yo'qolmadi — Google Sheets'dagi `Kuratorlar` varag'iga faqat
+  bitta qo'shimcha `Telefon2` ustuni qo'shildi (avvalgi ustunlar joyida).
+- **Joylashuvi noto'g'ri o'quvchilarni xaritadan chiqarish**: Ro'yxat
+  bo'limidagi har bir qatorda yangi 🚫/↩ tugmasi bor — bosilsa, o'sha
+  o'quvchi yo'nalish hisoblashda va xaritada hisobga olinmay qo'yadi
+  (ma'lumoti bazada TO'LIQ saqlanadi — hech narsa o'chirilmaydi). Pastda
+  alohida "🚫 Xaritadan chiqarilgan o'quvchilar" jadvali chiqadi — ota-
+  onasi bilan bog'lanib joylashuvni to'g'irlagach, "↩ Qaytarish" bosiladi.
+  Google Sheets'ga qo'shimcha `Chiqarilgan` ustuni (additiv, oxirida)
+  qo'shildi.
+- **"Bekatni qo'lda belgilash" endi Natija xaritasining o'zida** —
+  avvalgi alohida (Yo'nalishlar bo'limidagi) kichik xarita olib
+  tashlandi, o'rniga hisoblangan marshrut xaritasida "➕ Yangi bekat
+  qo'shish" tugmasi orqali xuddi shu ishni bajarish mumkin (Google Maps
+  yoki oddiy OpenStreetMap — qaysi biri faol bo'lsa, shunda ishlaydi).
+- **Yo'nalishni qo'lda tahrirlash — ikki xil usul**: (1) har bir avtobus
+  kartasidagi "Bekatlar tartibini qo'lda o'zgartirish" bo'limida ↑/↓
+  tugmalari bilan bekatlar ketma-ketligini almashtirish (yo'l OSRM orqali
+  darhol qayta hisoblanadi); (2) "✏️ Yo'lni qo'lda chizish" rejimi — bitta
+  avtobusni tanlab, xaritada bosib qo'shimcha yo'l nuqtalarini
+  belgilash — avtobus HAQIQIY yo'l (mavjud ko'chalar) bo'ylab, aynan shu
+  nuqtalar orqali o'tadigan qilib qayta hisoblanadi (masofa/vaqt hech
+  qachon "taxminiy chizish" bo'lib qolmaydi, doim real OSRM natijasi).
+- **O'quvchi ma'lumotida piyoda masofa alohida ko'rsatiladi**: xaritada
+  o'quvchi nomiga bosilganda ochiladigan oynada endi "Uydan bekatgacha
+  (piyoda)" qatori ham bor — bu ko'rsatkich avtobusning haydash
+  masofasidan (km) BUTUNLAY ALOHIDA hisoblanadi va hech qachon u bilan
+  qo'shilmaydi/aralashtirilmaydi (kodni tekshirib chiqdik — bu ikkisi
+  har doim ham alohida bo'lgan, endi shunchaki ko'rinadigan qilindi).
+- **Google xaritasidagi Traffic/Transit/Bicycling katagichlariga
+  o'zbekcha izoh (tooltip)** qo'shildi — sichqonchani ustiga olib borsangiz,
+  har biri nima qilishini tushuntiradi.
+- **PDF hisobot butunlay qayta ishlandi**: endi **albom (landscape)**
+  yo'nalishda, 1-sahifada katta, to'liq kenglikdagi marshrut xaritasi va
+  aniq/formatlangan (rangli katakcha ichida) haydovchi-xulosa bloki, 2-
+  sahifada esa o'quvchilar jadvali chiqadi. **Ko'cha nomlaridagi
+  "chalkash" matn muammosi topildi va tuzatildi** — sabab OSRM
+  ma'lumotining o'zi emas, balki PDF kutubxonasining standart shrifti
+  kirill harflarni chiza olmasligi edi; endi kirill+lotin+o'zbekcha
+  belgilarni qo'llab-quvvatlaydigan shrift PDF'ga o'rnatilgan va ko'cha
+  nomlari (hamda kirillcha yozilgan har qanday ism) endi TO'G'RI chiqadi.
+  Buzilgan ("#ERROR!" kabi) telefon raqamlari endi PDF'da ham admin
+  jadvalidagi kabi tushunarli "buzilgan — qayta so'rang" deb ko'rsatiladi
+  (bu — Sheets'dagi manba ma'lumotining o'zi buzilgani, ota-onadan qayta
+  so'rash kerak; kod buni "tuzatib" chiqara olmaydi, chunki asl raqam
+  allaqachon yo'qolgan). "Vaqt" ustuni endi "Taxminiy yetib kelish
+  vaqti" deb nomlangan. Google xaritasining sputnik/yo'l ko'rinishini
+  almashtiruvchi tugma (`mapTypeControl`) — bu allaqachon kodda bor edi,
+  endi to'g'ri kod nihoyat saytga yuklanganidan keyin ko'rinishi kerak
+  (tepada, xarita ustida "Xarita/Sputnik" tugmasi).
+
+Hammasi avvalgidek — additiv, hech qanday eski ma'lumot yo'qolmaydi.
+Avtomatik test (Playwright, real Google Maps API'ni taqlid qilib va PDF
+matnini chiqarib tekshirish orqali) barcha yuqoridagi funksiyalarni,
+jumladan kirillcha PDF matnini, tasdiqladi.
+
+### Muhim: saytni GitHub'ga qanday ishonchli yuklash kerak
+
+Agar avval GitHub'ning "Edit this file" (qalam belgisi) orqali fayllarni
+birma-bir tahrirlagan bo'lsangiz — bu usul ba'zan **sokin ravishda
+ishlamay qolishi** mumkin (o'zgarish "Commit" qilingandek ko'rinsa ham,
+haqiqatda saqlanmay qoladi). Eng ishonchli usul — **"Add file → Upload
+files"** orqali barcha fayllarni birdaniga (drag-and-drop bilan)
+yuklash — bu har doim mavjud fayllarni to'liq almashtiradi:
+
+1. Ushbu papkadagi barcha fayllarni tanlang, **FAQAT `config.js`dan
+   TASHQARI** (u sizning haqiqiy `APPS_SCRIPT_URL` va
+   `GOOGLE_MAPS_API_KEY` qiymatlaringizni saqlaydi — uni almashtirib
+   qo'ysangiz, sayt ishlamay qoladi).
+2. GitHub repozitoriyingizga kiring → **Add file → Upload files** →
+   tanlangan fayllarni shu yerga tashlang (drag-and-drop) → pastda
+   **Commit changes**.
+3. Bir necha daqiqadan so'ng (GitHub Pages yangilanishi uchun) saytni
+   qattiq yangilang (Ctrl+Shift+R) va tekshiring.
 
 ---
 
